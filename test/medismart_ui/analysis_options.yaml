@@ -1,0 +1,44 @@
+# analysis_options.yaml
+analyzer:
+  errors:
+    unused_import: warning
+    dead_code: warning
+    missing_return: error
+    invalid_annotation_target: error
+    unnecessary_getters_setters: warning
+    unnecessary_this: warning
+    prefer_single_quotes: warning
+    prefer_const_constructors: warning
+    prefer_final_fields: warning
+    prefer_is_empty: warning
+    prefer_adjacent_string_concatenation: warning
+    prefer_typing_uninitialized_variables: warning
+    unnecessary_new: warning
+    unnecessary_lambdas: warning
+    unnecessary_null_comparison: warning
+    unnecessary_type_check: warning
+    use_key_in_widget_constructors: warning
+
+linter:
+  rules:
+    - always_declare_return_types
+    - always_put_control_body_on_new_line
+    - annotate_overrides
+    - avoid_empty_else
+    - avoid_init_to_null
+    - avoid_print
+    - camel_case_types
+    - constant_identifier_names
+    - empty_constructor_bodies
+    - file_names
+    - hash_and_equals
+    - implementation_imports
+    - library_prefixes
+    - non_constant_identifier_names
+    - prefer_final_locals
+    - public_member_api_docs
+    - sort_unnamed_constructors_first
+    - type_annotate_public_apis
+    - unnecessary_brace_in_string_interps
+    - use_full_hex_values_for_flutter_colors
+    - use_key_in_widget_constructors
