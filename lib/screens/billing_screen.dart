@@ -57,7 +57,6 @@ class _BillingScreenState extends State<BillingScreen> {
   final TextEditingController _discountCtrl = TextEditingController(text: "0"); 
 
   bool _isUdhaar = false;
-  int _selectedGlobalGST = 0; 
 
   @override
   void initState() {
