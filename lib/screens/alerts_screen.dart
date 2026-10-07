@@ -17,7 +17,6 @@ class AlertsScreen extends StatefulWidget {
 }
 
 class _AlertsScreenState extends State<AlertsScreen> {
-  List<Map<String, dynamic>> _allItems = [];
   List<Map<String, dynamic>> _filteredItems = [];
   bool _isLoading = true;
 
@@ -59,7 +58,6 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
     if(mounted) {
       setState(() {
-        _allItems = data;
         _filteredItems = tempFiltered;
         _isLoading = false;
       });

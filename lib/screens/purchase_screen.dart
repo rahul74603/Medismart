@@ -19,7 +19,6 @@ class PurchaseScreen extends StatefulWidget {
 class _PurchaseScreenState extends State<PurchaseScreen> {
   List<Map<String, dynamic>> _suppliers = [];
   int? _selectedSupplierId;
-  List<Map<String, dynamic>> _allBatches = [];
   List<Map<String, dynamic>> _products = [];
   List<Map<String, dynamic>> _cart = [];
 
@@ -58,7 +57,6 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
     if (!mounted) return;
     setState(() {
       _suppliers = suppliers;
-      _allBatches = batches;
       _products = _groupProducts(batches);
       _purchaseNo = purNo;
       _isLoading = false;

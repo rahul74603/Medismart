@@ -106,7 +106,6 @@ class _BillingScreenState extends State<BillingScreen> {
 
       _discountCtrl.text = widget.editBillData!['discount'].toString();
       _isUdhaar = widget.editBillData!['payment_mode'] == 'Udhaar';
-      _selectedGlobalGST = widget.editBillData!['gst_percent'] ?? 0;
 
       // Load Items - Support both field name formats (price/rate, sold_qty/qty, name/item_name)
       _cart = List.from(widget.editItems!.map((e) {
