@@ -114,7 +114,7 @@ class _BillingScreenState extends State<BillingScreen> {
          double mrp = ((e['mrp'] as num?) ?? price).toDouble();
          if (mrp == 0) mrp = price;
          return {
-          'id': ((e!['stock_id'] as num?)?.toInt()) ?? 0,
+          'id': ((e['stock_id'] as num?)?.toInt()) ?? 0,
           'name': e['name'] ?? e['item_name'] ?? 'Item',
           'batch': e['batch'] ?? '',
           'mrp': mrp,
@@ -122,7 +122,7 @@ class _BillingScreenState extends State<BillingScreen> {
           'gst_percent': e['gst_percent'] ?? 0,
           'sold_qty': (e['sold_qty'] ?? e['qty']) as int? ?? 0,
           'free_qty': (e['free_qty'] as int?) ?? 0,
-          'cost': ((e!['cost_rate'] as num?)?.toDouble()) ?? 0.0,
+          'cost': ((e['cost_rate'] as num?)?.toDouble()) ?? 0.0,
           'max_qty': 99999,
           'total': (e['total'] as num?)?.toDouble() ?? 0.0
         };

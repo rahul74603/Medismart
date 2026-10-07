@@ -120,7 +120,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                   customerName: freshCust!['name'] ?? 'Customer',
                   mobile: widget.customer['mobile'] ?? '',
                   ledgerEntries: _ledger,
-                  totalDue: (freshCust!['total_due'] as num?)?.toDouble() ?? 0.0,
+                  totalDue: (freshCust['total_due'] as num?)?.toDouble() ?? 0.0,
                 );
                 Share.shareXFiles([XFile(pdfFile.path)], text: "Account Statement for ${widget.customer['name']}"); 
               },
