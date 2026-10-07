@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 // 🔥 CORRECT IMPORT
-import '../pdf_helper.dart'; 
+import '../pdf_helper.dart';
+import '../services/receipt_helper.dart';
 
 class ViewBillScreen extends StatefulWidget {
   final Map<String, dynamic> billData;
@@ -16,13 +16,28 @@ class ViewBillScreen extends StatefulWidget {
 }
 
 class _ViewBillScreenState extends State<ViewBillScreen> {
-  
+
   Future<File> _generatePdf() async {
     // Calling the SAFE generator
     return await PDFHelper.generateBill(
-      billData: widget.billData, 
+      billData: widget.billData,
       items: widget.items
     );
+  }
+
+  Future<void> _printReceipt() async {
+    try {
+      await ReceiptHelper.printBillReceipt(
+        billData: widget.billData,
+        items: widget.items,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Print error: $e"), backgroundColor: Colors.orange),
+        );
+      }
+    }
   }
 
   @override
@@ -30,8 +45,15 @@ class _ViewBillScreenState extends State<ViewBillScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text("Invoice: ${widget.billData['invoice_no']}"),
-        backgroundColor: Colors.deepOrange, 
+        backgroundColor: Colors.deepOrange,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.receipt_long),
+            tooltip: "Thermal Receipt Print (58/80mm)",
+            onPressed: _printReceipt,
+          ),
+        ],
       ),
       body: PdfPreview(
         build: (format) async {

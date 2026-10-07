@@ -71,10 +71,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
     for (var bill in filtered) {
       double net = (bill['net_amount'] as num?)?.toDouble() ?? 0.0;
       _totalSale += net;
-      if (bill['payment_mode'] == 'Cash') {
-        _totalCash += net;
-      } else {
+      if (bill['payment_mode'] == 'Udhaar') {
         _totalUdhaar += net;
+      } else {
+        // Cash, UPI, Card... sab collected me
+        _totalCash += net;
       }
 
       // Graph Data
@@ -138,7 +139,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               pw.Row(children: [
                 _pdfBox("Total Revenue", _totalSale, PdfColors.blue),
                 pw.SizedBox(width: 10),
-                _pdfBox("Cash Collected", _totalCash, PdfColors.green),
+                _pdfBox("Cash + UPI", _totalCash, PdfColors.green),
                 pw.SizedBox(width: 10),
                 _pdfBox("Udhaar Given", _totalUdhaar, PdfColors.red),
               ]),
@@ -253,7 +254,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               // --- 3. CASH vs UDHAAR (Visual Split) ---
               Row(
                 children: [
-                  Expanded(child: _buildInfoCard("Cash Collected", _totalCash, Colors.green, FontAwesomeIcons.sackDollar)),
+                  Expanded(child: _buildInfoCard("Cash + UPI", _totalCash, Colors.green, FontAwesomeIcons.sackDollar)),
                   const SizedBox(width: 15),
                   Expanded(child: _buildInfoCard("Udhaar Given", _totalUdhaar, Colors.red, FontAwesomeIcons.bookOpen)),
                 ],

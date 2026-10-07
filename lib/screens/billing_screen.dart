@@ -100,7 +100,7 @@ class _BillingScreenState extends State<BillingScreen> {
          double mrp = ((e['mrp'] as num?) ?? price).toDouble();
          if (mrp == 0) mrp = price;
          return {
-          'id': 0,
+          'id': ((e!['stock_id'] as num?)?.toInt()) ?? 0,
           'name': e['name'] ?? e['item_name'] ?? 'Item',
           'batch': e['batch'] ?? '',
           'mrp': mrp,
@@ -114,8 +114,18 @@ class _BillingScreenState extends State<BillingScreen> {
       }));
       
       for(var cartItem in _cart) {
-          var stockItem = items.firstWhere((i) => i['name'] == cartItem['name'], orElse: () => {});
+          int sid = ((cartItem['id'] as num?)?.toInt()) ?? 0;
+          var stockItem = items.firstWhere(
+            (i) => sid > 0
+              ? i['id'] == sid
+              : (i['name'] == cartItem['name'] && (i['batch'] ?? '') == (cartItem['batch'] ?? '')),
+            orElse: () => {});
+          if(stockItem.isEmpty && sid == 0) {
+            // Legacy fallback: match by name only
+            stockItem = items.firstWhere((i) => i['name'] == cartItem['name'], orElse: () => {});
+          }
           if(stockItem.isNotEmpty) {
+            if (sid == 0) cartItem['id'] = stockItem['id'];
             // If bill item doesn't have GST percent, get it from stock item
             if (cartItem['gst_percent'] == 0) {
               cartItem['gst_percent'] = stockItem['gst_percent'] ?? 0;
@@ -187,9 +197,20 @@ class _BillingScreenState extends State<BillingScreen> {
     TextEditingController rateCtrl = TextEditingController(text: initialRate.toString());
     int availableStock = item['quantity'];
 
+    // FEFO: all batches of this product with stock, earliest expiry first
+    List<Map<String, dynamic>> batches = DBHelper.sortBatchesFEFO(
+      _allItems.where((b) =>
+        b['name'] == item['name'] && _availFor(b) > 0
+      ).toList()
+    );
+    if (batches.isEmpty) batches = [item];
+    Map<String, dynamic> selectedBatch = batches.firstWhere(
+      (b) => b['id'] == item['id'], orElse: () => batches.first);
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => StatefulBuilder(
+        builder: (dctx, setD) => AlertDialog(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -200,6 +221,31 @@ class _BillingScreenState extends State<BillingScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            DropdownButtonFormField<int>(
+              value: ((selectedBatch['id'] as num?)?.toInt()) ?? 0,
+              decoration: const InputDecoration(
+                labelText: "Batch (FEFO: earliest expiry first)",
+                border: OutlineInputBorder(), isDense: true),
+              items: batches.map((b) {
+                return DropdownMenuItem<int>(
+                  value: ((b['id'] as num?)?.toInt()) ?? 0,
+                  child: Text(
+                    "${b['batch'] ?? '-'} • Exp ${b['expiryDate'] ?? '-'} • ${_availFor(b)}",
+                    style: const TextStyle(fontSize: 12)),
+                );
+              }).toList(),
+              onChanged: (v) {
+                setD(() {
+                  selectedBatch = batches.firstWhere(
+                    (b) => (((b['id'] as num?)?.toInt()) ?? 0) == v,
+                    orElse: () => batches.first);
+                  double br = ((selectedBatch['wholesale_price'] as num?)?.toDouble()) ?? 0.0;
+                  if (br <= 0) br = (((selectedBatch['price'] as num?)?.toDouble()) ?? 0.0);
+                  rateCtrl.text = br.toString();
+                });
+              },
+            ),
+            const SizedBox(height: 10),
             Row(children: [
                 Expanded(child: TextField(controller: qtyCtrl, keyboardType: TextInputType.number, autofocus: true, decoration: const InputDecoration(labelText: "Bill Qty", border: OutlineInputBorder()), inputFormatters: [FilteringTextInputFormatter.digitsOnly])),
                 const SizedBox(width: 10),
@@ -218,36 +264,63 @@ class _BillingScreenState extends State<BillingScreen> {
               double rate = double.tryParse(rateCtrl.text) ?? 0.0;
 
               if (qty <= 0) return;
-              if ((qty + free) > availableStock && !_isEditMode) {
-                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Low Stock!"), backgroundColor: Colors.red));
-                 return;
-              }
 
-              // Check if item already exists in cart
-              bool itemExists = _cart.any((cartItem) => cartItem['name'] == item['name']);
-              if (itemExists) {
+              // FEFO allocation starting from the selected batch
+              int startIdx = batches.indexWhere((b) => b['id'] == selectedBatch['id']);
+              if (startIdx < 0) startIdx = 0;
+              int remQty = qty, remFree = free;
+              final List<Map<String, dynamic>> alloc = [];
+              for (int bi = startIdx; bi < batches.length && (remQty + remFree) > 0; bi++) {
+                final b = batches[bi];
+                int avail = _availFor(b);
+                if (avail <= 0) continue;
+                int takeQ = remQty <= avail ? remQty : avail;
+                avail -= takeQ;
+                remQty -= takeQ;
+                int takeF = remFree <= avail ? remFree : avail;
+                remFree -= takeF;
+                if (takeQ + takeF > 0) {
+                  alloc.add({'row': b, 'q': takeQ, 'f': takeF});
+                }
+              }
+              if ((remQty + remFree) > 0) {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text("Item already in bill!"),
-                  backgroundColor: Colors.orange,
-                ));
+                    content: Text("Not enough stock in batches!"), backgroundColor: Colors.red));
                 return;
               }
 
               setState(() {
-                _cart.add({
-                  'id': item['id'],
-                  'name': item['name'],
-                  'batch': item['batch'] ?? '-',
-                  'mrp': mrp, 
-                  'price': rate,        
-                  'gst_percent': item['gst_percent'] ?? 0,
-                  'sold_qty': qty,
-                  'free_qty': free,
-                  'max_qty': availableStock,
-                  'total': qty * rate,
-                  'expiryDate': item['expiryDate'] ?? '-',
-                  'type': item['type'] ?? '-'
-                });
+                for (var a in alloc) {
+                  final b = a['row'] as Map<String, dynamic>;
+                  final int q = a['q'] as int;
+                  final int f = a['f'] as int;
+                  double bMrp = (((b['mrp'] as num?)?.toDouble()) ?? 0.0);
+                  if (bMrp <= 0) bMrp = (((b['price'] as num?)?.toDouble()) ?? rate);
+                  int bId = ((b['id'] as num?)?.toInt()) ?? -2;
+                  // Merge with existing line of same batch if present
+                  int exIdx = _cart.indexWhere((c) => (((c['id'] as num?)?.toInt()) ?? -1) == bId);
+                  if (exIdx >= 0) {
+                    _cart[exIdx]['sold_qty'] = ((_cart[exIdx]['sold_qty'] as num).toInt()) + q;
+                    _cart[exIdx]['free_qty'] = ((_cart[exIdx]['free_qty'] as num).toInt()) + f;
+                    _cart[exIdx]['price'] = rate;
+                    _cart[exIdx]['total'] = ((_cart[exIdx]['sold_qty'] as num).toInt()) * rate;
+                  } else {
+                    _cart.add({
+                      'id': b['id'],
+                      'name': b['name'],
+                      'batch': b['batch'] ?? '-',
+                      'mrp': bMrp,
+                      'price': rate,
+                      'gst_percent': b['gst_percent'] ?? 0,
+                      'sold_qty': q,
+                      'free_qty': f,
+                      'max_qty': (((b['quantity'] as num?)?.toInt()) ?? 0),
+                      'total': q * rate,
+                      'expiryDate': b['expiryDate'] ?? '-',
+                      'type': b['type'] ?? '-'
+                    });
+                  }
+                }
                 _searchCtrl.clear();
                 _filteredItems = _allItems;
               });
@@ -256,6 +329,7 @@ class _BillingScreenState extends State<BillingScreen> {
             child: const Text("ADD"),
           )
         ],
+        ),
       ),
     );
   }
@@ -440,6 +514,7 @@ class _BillingScreenState extends State<BillingScreen> {
       // Prepare items for database
       List<Map<String, dynamic>> itemsForDB = _cart.map((item) {
         return {
+          'stock_id': item['id'],
           'name': item['name'],
           'batch': item['batch'] ?? '',
           'qty': item['sold_qty'],
@@ -750,6 +825,8 @@ class _BillingScreenState extends State<BillingScreen> {
                                     child: Text("Stock: ${item['quantity']}", 
                                       style: TextStyle(fontSize: 11, color: (item['quantity'] as int) > 10 ? Colors.green : Colors.red)),
                                   ),
+                                  const SizedBox(width: 8),
+                                  Text("B:${item['batch'] ?? '-'}", style: TextStyle(fontSize: 11, color: Colors.grey[600])),
                                   const SizedBox(width: 8),
                                   Text("₹${item['price']}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                                 ],

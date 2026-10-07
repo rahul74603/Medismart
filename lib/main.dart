@@ -10,8 +10,11 @@ import 'db_helper.dart';
 
 // Screens Imports
 import 'screens/billing_screen.dart';
+import 'screens/retail_billing_screen.dart';
+import 'screens/purchase_screen.dart';
 // 🔥 FIX: Hide BillingScreen from history to avoid conflict
-import 'screens/history_screen.dart' hide BillingScreen; 
+import 'screens/history_screen.dart' hide BillingScreen;
+import 'services/auto_backup_service.dart'; 
 import 'screens/stock_screen.dart';
 import 'screens/customers_screen.dart';
 import 'screens/reports_screen.dart';
@@ -167,6 +170,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _loadStats();
+    // Daily auto-backup check (silent, once per day)
+    AutoBackupService.runDailyCheck();
   }
 
   void _loadStats() async {
@@ -313,8 +318,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     physics: const NeverScrollableScrollPhysics(), // Disables inner scrolling
                     childAspectRatio: 0.9, // Adjust height of grid items
                     children: [
-                      _buildMenuBtn("Billing", FontAwesomeIcons.fileInvoiceDollar, const Color(0xFF0F766E), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const BillingScreen())).then((_) => _loadStats())),
+                      _buildMenuBtn("Billing", FontAwesomeIcons.fileInvoiceDollar, const Color(0xFF0F766E), _showBillingChooser),
                       _buildMenuBtn("Stock", FontAwesomeIcons.boxesStacked, const Color(0xFF0284C7), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const StockScreen())).then((_) => _loadStats())),
+                      _buildMenuBtn("Purchase", FontAwesomeIcons.cartShopping, const Color(0xFF92400E), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const PurchaseScreen())).then((_) => _loadStats())),
+                      _buildMenuBtn("Suppliers", FontAwesomeIcons.truckFast, const Color(0xFF0D9488), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const SuppliersScreen())).then((_) => _loadStats())),
                       _buildMenuBtn("History", FontAwesomeIcons.clockRotateLeft, const Color(0xFF6366F1), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const HistoryScreen()))),
                       _buildMenuBtn("Customers", FontAwesomeIcons.users, const Color(0xFFD946EF), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const CustomersScreen()))),
                       _buildMenuBtn("Reports", FontAwesomeIcons.chartPie, const Color(0xFFF97316), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const ReportsScreen()))),
@@ -325,6 +332,97 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
             )
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- RETAIL / WHOLESALE CHOOSER ---
+  void _showBillingChooser() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text("New Bill",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _chooserCard(
+                      "RETAIL",
+                      "Counter sale\nFast • MRP rate",
+                      FontAwesomeIcons.bolt,
+                      Colors.teal,
+                      () {
+                        Navigator.pop(ctx);
+                        Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (c) =>
+                                        const RetailBillingScreen()))
+                            .then((_) => _loadStats());
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _chooserCard(
+                      "WHOLESALE",
+                      "Party sale\nGST • Basic rate",
+                      FontAwesomeIcons.fileInvoiceDollar,
+                      const Color(0xFFFF6F00),
+                      () {
+                        Navigator.pop(ctx);
+                        Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (c) => const BillingScreen()))
+                            .then((_) => _loadStats());
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _chooserCard(String title, String subtitle, IconData icon,
+      Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: color, width: 1.5),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 36),
+            const SizedBox(height: 12),
+            Text(title,
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: color)),
+            const SizedBox(height: 4),
+            Text(subtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 11, color: Colors.grey)),
           ],
         ),
       ),
