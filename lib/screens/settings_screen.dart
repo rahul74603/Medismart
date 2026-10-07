@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:share_plus/share_plus.dart'; 
 import 'package:file_picker/file_picker.dart';
 import '../db_helper.dart'; // ✅ ये लाइन अब सही कर दी गई है (../ लगा दिया)

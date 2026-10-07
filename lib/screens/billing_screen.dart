@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../db_helper.dart';
-import '../pdf_helper.dart'; // Correct Master Import
 import 'view_bill_screen.dart'; // Ensure ViewBillScreen is imported
 import '../services/lang_service.dart';
 
@@ -21,6 +20,19 @@ class _BillingScreenState extends State<BillingScreen> {
   List<Map<String, dynamic>> _allItems = [];
   List<Map<String, dynamic>> _filteredItems = [];
   List<Map<String, dynamic>> _cart = [];
+
+  /// Available qty of a batch minus what's already in the cart.
+  int _availFor(Map<String, dynamic> b) {
+    int stockId = ((b['id'] as num?)?.toInt()) ?? 0;
+    int inCart = 0;
+    for (var l in _cart) {
+      if ((((l['id'] as num?)?.toInt()) ?? -1) == stockId) {
+        inCart += (((l['sold_qty'] as num?)?.toInt()) ?? 0) +
+            (((l['free_qty'] as num?)?.toInt()) ?? 0);
+      }
+    }
+    return ((((b['quantity'] as num?)?.toInt()) ?? 0)) - inCart;
+  }
   String _invoiceNo = "Loading...";
   bool _manualInv = false;
   DateTime _selectedDate = DateTime.now();
@@ -165,7 +177,7 @@ class _BillingScreenState extends State<BillingScreen> {
         _gstinCtrl.text = cust['gstin'] ?? '';
         _addressCtrl.text = cust['address'] ?? '';
       });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar( SnackBar(
         content: Text(Lang.t('w_found')), 
         duration: Duration(milliseconds: 800),
         backgroundColor: Colors.green,
@@ -232,7 +244,7 @@ class _BillingScreenState extends State<BillingScreen> {
           children: [
             DropdownButtonFormField<int>(
               value: ((selectedBatch['id'] as num?)?.toInt()) ?? 0,
-              decoration: const InputDecoration(
+              decoration:  InputDecoration(
                 labelText: Lang.t('w_batch'),
                 border: OutlineInputBorder(), isDense: true),
               items: batches.map((b) {
@@ -357,7 +369,7 @@ class _BillingScreenState extends State<BillingScreen> {
                 }
               }
               if ((remQty + remFree) > 0) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                ScaffoldMessenger.of(context).showSnackBar( SnackBar(
                     content: Text(Lang.t('w_nostock')), backgroundColor: Colors.red));
                 return;
               }
@@ -535,7 +547,7 @@ class _BillingScreenState extends State<BillingScreen> {
   // --- SAVE FUNCTION ---
   void _generateBill() async {
     if (_cart.isEmpty || _nameCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar( SnackBar(
         content: Text(Lang.t('w_add')),
         backgroundColor: Colors.red,
       ));
@@ -1328,16 +1340,4 @@ class _BillingScreenState extends State<BillingScreen> {
     );
   }
 
-  Widget _buildRow(String label, String value, {bool isBold = false, Color? color}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
-          Text(value, style: TextStyle(fontWeight: isBold ? FontWeight.bold : FontWeight.normal, color: color)),
-        ],
-      ),
-    );
-  }
 }

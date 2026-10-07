@@ -111,10 +111,8 @@ class _DayCloseScreenState extends State<DayCloseScreen> {
     final ds = '${d.day}/${d.month}/${d.year}';
     final hi = Lang.code == 'hi';
     final text = hi
-        ? '📊 *$shop*\nदिन का हिसाब — $ds\n\n💰 बिक्री वसूली: ₹${_cashIn.toStringAsFixed(0)}\n💵 उधार वसूली: ₹${_collection.toStringAsFixed(0)}
-📒 उधार दिया: ₹${_udhaar.toStringAsFixed(0)}\n🛒 खरीद में दिया: ₹${_purchase.toStringAsFixed(0)}\n🧾 खर्चे: ₹${_expenseTotal.toStringAsFixed(0)}\n↩️ वापसी: ₹${_refunds.toStringAsFixed(0)}\n\n✅ *हाथ में नकद: ₹${_net.toStringAsFixed(0)}*\n📈 मुनाफ़ा: ₹${_profit.toStringAsFixed(0)}'
-        : '📊 *$shop*\nDay Close — $ds\n\n💰 Sale collected: ₹${_cashIn.toStringAsFixed(0)}\n💵 Udhaar collected: ₹${_collection.toStringAsFixed(0)}
-📒 Udhaar given: ₹${_udhaar.toStringAsFixed(0)}\n🛒 Purchase paid: ₹${_purchase.toStringAsFixed(0)}\n🧾 Expenses: ₹${_expenseTotal.toStringAsFixed(0)}\n↩️ Refunds: ₹${_refunds.toStringAsFixed(0)}\n\n✅ *Net cash in hand: ₹${_net.toStringAsFixed(0)}*\n📈 Profit: ₹${_profit.toStringAsFixed(0)}';
+        ? '📊 *$shop*\nदिन का हिसाब — $ds\n\n💰 बिक्री वसूली: ₹${_cashIn.toStringAsFixed(0)}\n💵 उधार वसूली: ₹${_collection.toStringAsFixed(0)}\n📒 उधार दिया: ₹${_udhaar.toStringAsFixed(0)}\n🛒 खरीद में दिया: ₹${_purchase.toStringAsFixed(0)}\n🧾 खर्चे: ₹${_expenseTotal.toStringAsFixed(0)}\n↩️ वापसी: ₹${_refunds.toStringAsFixed(0)}\n\n✅ *हाथ में नकद: ₹${_net.toStringAsFixed(0)}*\n📈 मुनाफ़ा: ₹${_profit.toStringAsFixed(0)}'
+        : '📊 *$shop*\nDay Close — $ds\n\n💰 Sale collected: ₹${_cashIn.toStringAsFixed(0)}\n💵 Udhaar collected: ₹${_collection.toStringAsFixed(0)}\n📒 Udhaar given: ₹${_udhaar.toStringAsFixed(0)}\n🛒 Purchase paid: ₹${_purchase.toStringAsFixed(0)}\n🧾 Expenses: ₹${_expenseTotal.toStringAsFixed(0)}\n↩️ Refunds: ₹${_refunds.toStringAsFixed(0)}\n\n✅ *Net cash in hand: ₹${_net.toStringAsFixed(0)}*\n📈 Profit: ₹${_profit.toStringAsFixed(0)}';
     await Share.share(text);
   }
 

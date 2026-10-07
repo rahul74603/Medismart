@@ -710,7 +710,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                           const SizedBox(width: 8),
                           DropdownButton<String>(
                             value: _payMode,
-                            items: const [
+                            items: [
                               DropdownMenuItem(value: 'Cash', child: Text(Lang.t('cash'))),
                               DropdownMenuItem(value: 'UPI', child: Text(Lang.t('upi'))),
                               DropdownMenuItem(value: 'Cheque', child: Text(Lang.t('pu_cheque'))),

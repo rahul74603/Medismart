@@ -82,7 +82,7 @@ class _SupplierOrderScreenState extends State<SupplierOrderScreen> {
 
   Future<void> _sendOrder() async {
     if (_selectedSupplierId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar( SnackBar(
           content: Text(Lang.t('pu_sup_req')),
           backgroundColor: Colors.red));
       return;
@@ -106,7 +106,7 @@ class _SupplierOrderScreenState extends State<SupplierOrderScreen> {
         .where((l) => ((l['qty'] as num?)?.toInt() ?? 0) > 0)
         .toList();
     if (lines.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar( SnackBar(
           content: Text(Lang.t('so_qty0')), backgroundColor: Colors.red));
       return;
     }
@@ -169,7 +169,7 @@ class _SupplierOrderScreenState extends State<SupplierOrderScreen> {
                 ),
                 Expanded(
                   child: _products.isEmpty
-                      ? const Center(
+                      ?  Center(
                           child: Text(
                               Lang.t('so_full'),
                               style: TextStyle(color: Colors.grey)))

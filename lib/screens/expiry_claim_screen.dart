@@ -264,7 +264,7 @@ class _ExpiryClaimScreenState extends State<ExpiryClaimScreen>
     if (!confirm) return;
     await DBHelper.settleClaim((claim['id'] as num).toInt());
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar( SnackBar(
         content: Text(Lang.t('ec_settled')),
         backgroundColor: Colors.green));
     _loadClaims();
@@ -341,7 +341,7 @@ class _ExpiryClaimScreenState extends State<ExpiryClaimScreen>
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
-          tabs: const [
+          tabs: [
             Tab(text: Lang.t('ec_new'), icon: Icon(Icons.add_box, size: 18)),
             Tab(text: Lang.t('ec_hist'), icon: Icon(Icons.history, size: 18)),
           ],

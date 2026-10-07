@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -271,7 +270,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
             child: TextField(
               controller: _searchCtrl,
               onChanged: _runFilter,
-              decoration: const InputDecoration(
+              decoration:  InputDecoration(
                 hintText: Lang.t('cu_search'),
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(),

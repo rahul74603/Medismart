@@ -1,7 +1,6 @@
 import 'dart:convert'; 
 import 'package:crypto/crypto.dart'; 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -14,7 +13,7 @@ import 'screens/retail_billing_screen.dart';
 import 'screens/purchase_screen.dart';
 import 'screens/expiry_claim_screen.dart';
 // 🔥 FIX: Hide BillingScreen from history to avoid conflict
-import 'screens/history_screen.dart' hide BillingScreen;
+import 'screens/history_screen.dart';
 import 'services/auto_backup_service.dart'; 
 import 'screens/stock_screen.dart';
 import 'screens/customers_screen.dart';

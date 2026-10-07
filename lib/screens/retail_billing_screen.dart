@@ -1113,7 +1113,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
           Expanded(
             flex: 5,
             child: _filteredProducts.isEmpty
-                ? const Center(
+                ?  Center(
                     child: Text(Lang.t('r_no_med'),
                         style: TextStyle(color: Colors.grey)))
                 : ListView.builder(
@@ -1329,7 +1329,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                     // Pay mode
                     Expanded(
                       child: SegmentedButton<String>(
-                        segments: const [
+                        segments: [
                           ButtonSegment(
                               value: 'Cash',
                               label: Text(Lang.t('cash'),
