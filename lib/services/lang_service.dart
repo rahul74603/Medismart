@@ -76,6 +76,10 @@ class Lang {
       'r_save_print': 'SAVE & PRINT',
       'r_update': 'UPDATE BILL',
       'r_no_med': 'No medicines found',
+      'inv_edit': 'Edit Bill No',
+      'inv_hint': 'Bill number',
+      'inv_dup': 'Ye bill number pehle se hai!',
+      'inv_empty': 'Bill number khaali nahi ho sakta!',
       // Settings
       's_title': 'Settings',
       's_shop': 'Shop Details (For Bill Header)',
@@ -204,6 +208,10 @@ class Lang {
       'r_save_print': 'सेव + प्रिंट',
       'r_update': 'बिल अपडेट',
       'r_no_med': 'दवाई नहीं मिली',
+      'inv_edit': 'बिल नंबर बदलें',
+      'inv_hint': 'बिल नंबर',
+      'inv_dup': 'ये बिल नंबर पहले से है!',
+      'inv_empty': 'बिल नंबर खाली नहीं हो सकता!',
       // Settings
       's_title': 'सेटिंग',
       's_shop': 'दुकान की जानकारी (बिल के लिए)',

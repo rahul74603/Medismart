@@ -21,10 +21,19 @@ class _StockScreenState extends State<StockScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
 
   // Full List of Types
-  final List<String> _medTypes = ['Tablet', 'Capsule', 'Syrup', 'Injection', 'Cream', 'Ointment', 'Drops', 'Strip', 'Suppotry', 'Other'];
+  final List<String> _medTypes = [
+    'TABLET', 'CAPSULE', 'SOFT GELATIN', 'SYRUP', 'SUSPENSION', 'DRY SYRUP',
+    'DROPS', 'EYE DROPS', 'EAR DROPS', 'NASAL DROPS', 'INJECTION', 'INFUSION',
+    'INSULIN', 'VACCINE', 'CREAM', 'OINTMENT', 'GEL', 'LOTION', 'LINIMENT',
+    'POWDER', 'SPRAY', 'NASAL SPRAY', 'INHALER', 'RESPULES', 'SACHET',
+    'TONIC', 'MOUTHWASH', 'SUPPOSITORY', 'PATCH', 'STRIP', 'BABY FOOD',
+    'BABY CARE', 'DIAPER', 'SANITIZER', 'MASK', 'BANDAGE', 'COTTON',
+    'GAUZE', 'GLOVES', 'SURGICAL', 'PERSONAL CARE', 'AYURVEDIC',
+    'HOMEOPATHIC', 'COSMETIC', 'DEVICE', 'GENERAL', 'OTHER',
+  ];
   final List<int> _gstSlabs = [0, 5, 12, 18, 28];
 
-  String _selectedType = 'Tablet';
+  String _selectedType = 'TABLET';
 
   @override
   void initState() {
@@ -197,8 +206,8 @@ class _StockScreenState extends State<StockScreen> {
     final expiryCtrl = TextEditingController(text: item?['expiryDate']);
     final tabsPerStripCtrl = TextEditingController(text: "10");
 
-    String currentType = item?['type'] ?? prefill?['type'] ?? 'Tablet';
-    if (!_medTypes.contains(currentType)) currentType = 'Tablet';
+    String currentType = ((item?['type'] ?? prefill?['type'] ?? 'TABLET') as String).toUpperCase();
+    if (!_medTypes.contains(currentType)) currentType = 'TABLET';
     _selectedType = currentType;
 
     int currentGST = item?['gst_percent'] ?? prefill?['gst_percent'] ?? 0;
@@ -213,7 +222,7 @@ class _StockScreenState extends State<StockScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            bool isStripSelected = _selectedType == 'Strip';
+            bool isStripSelected = _selectedType == 'STRIP';
 
             void calculateWholesaleRate() {
               double mrp = double.tryParse(priceCtrl.text) ?? 0.0;
@@ -385,7 +394,7 @@ class _StockScreenState extends State<StockScreen> {
                       double finalPricePerUnit = enteredMRP;
                       double finalWholesalePerUnit = enteredWholesale;
 
-                      if (_selectedType == 'Strip') {
+                      if (_selectedType == 'STRIP') {
                          int perStrip = int.tryParse(tabsPerStripCtrl.text) ?? 1;
                          finalQty = enteredQty * perStrip;
                          if (perStrip > 0) {
@@ -397,7 +406,7 @@ class _StockScreenState extends State<StockScreen> {
                       Map<String, dynamic> data = {
                         'name': nameCtrl.text,
                         'chemical': chemicalCtrl.text,
-                        'type': _selectedType == 'Strip' ? 'Tablet' : _selectedType,
+                        'type': _selectedType == 'STRIP' ? 'TABLET' : _selectedType,
                         'batch': batchCtrl.text,
                         'rack': rackCtrl.text,
                         'barcode': barcodeCtrl.text.trim(),
@@ -655,7 +664,7 @@ class _StockScreenState extends State<StockScreen> {
                                 onPressed: () => _showForm(prefill: {
                                   'name': g['name'],
                                   'chemical': g['chemical'],
-                                  'type': (rows.first['type'] ?? 'Tablet').toString(),
+                                  'type': (rows.first['type'] ?? 'TABLET').toString(),
                                   'rack': g['rack'],
                                   'price': rows.first['price'],
                                   'wholesale_price': rows.first['wholesale_price'],

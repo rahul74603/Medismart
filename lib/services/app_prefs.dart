@@ -6,6 +6,7 @@ class AppPrefs {
   static const _kReceiptWidth = 'receipt_width_mm'; // 58 or 80
   static const _kAutoPrint = 'auto_print_receipt'; // bool
   static const _kUpiId = 'shop_upi_id'; // UPI id for QR on receipt
+  static const _kQrPath = 'shop_qr_path'; // uploaded QR image path
   static const _kLastAutoBackup = 'last_auto_backup'; // yyyy-MM-dd
   static const _kLastBackupPath = 'last_backup_path'; // full file path
   static const _kLastBackupTime = 'last_backup_time'; // display string
@@ -38,6 +39,16 @@ class AppPrefs {
   static Future<void> setUpiId(String v) async {
     final p = await SharedPreferences.getInstance();
     await p.setString(_kUpiId, v.trim());
+  }
+
+  static Future<String> getQrPath() async {
+    final p = await SharedPreferences.getInstance();
+    return p.getString(_kQrPath) ?? '';
+  }
+
+  static Future<void> setQrPath(String v) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_kQrPath, v.trim());
   }
 
   static Future<String?> getLastAutoBackupDay() async {

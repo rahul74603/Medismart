@@ -25,7 +25,7 @@ class DBHelper {
     return await openDatabase(
       path,
       // 🔥 VERSION 14: refills, prescriptions, expenses (day-close)
-      version: 14,
+      version: 15,
       onCreate: (db, version) async {
 
         // 1. ITEMS / STOCK TABLE (one row = one batch of a product)
@@ -547,13 +547,22 @@ class DBHelper {
           } catch (e) { print("V14 refill backfill error: $e"); }
           print("Upgrade to v14 applied successfully.");
         }
+
+        // 🔥 V15: medicine types -> ALL CAPS (+ fix Suppotry typo)
+        if (oldVersion < 15) {
+          try {
+            await db.execute("UPDATE items SET type = 'SUPPOSITORY' WHERE type = 'Suppotry'");
+            await db.execute("UPDATE items SET type = UPPER(type) WHERE type IS NOT NULL");
+            print("Upgrade to v15 applied successfully.");
+          } catch (e) { print("V15 types error: $e"); }
+        }
       },
     );
   }
 
   static Future<void> _insertDummyData(Database db) async {
     await db.insert('items', {
-      'name': 'Dolo 650', 'chemical': 'Paracetamol', 'type': 'Strip', 'batch': 'DL-202', 'rack': 'A1',
+      'name': 'Dolo 650', 'chemical': 'Paracetamol', 'type': 'STRIP', 'batch': 'DL-202', 'rack': 'A1',
       'quantity': 50, 'price': 30.0, 'wholesale_price': 25.0, 'gst_percent': 12, 'expiryDate': '12/12/2026'
     });
 
@@ -646,6 +655,16 @@ class DBHelper {
     var res = await db.rawQuery("SELECT COALESCE(MAX(id),0)+1 as nid FROM bills");
     int n = ((res.first['nid'] as num?)?.toInt()) ?? 1;
     return "INV-${n.toString().padLeft(4, '0')}";
+  }
+
+  /// True if [inv] already exists on another bill (for manual bill-no edit).
+  static Future<bool> invoiceNoExists(String inv, [int? excludeId]) async {
+    final db = await database;
+    final rows = await db.query('bills',
+        columns: ['id'], where: 'invoice_no = ?', whereArgs: [inv.trim()]);
+    if (rows.isEmpty) return false;
+    if (excludeId == null) return true;
+    return rows.any((r) => ((r['id'] as num?)?.toInt()) != excludeId);
   }
 
   static Future<String> getNewPurchaseNo() async {
@@ -906,7 +925,7 @@ class DBHelper {
         await db.insert('items', {
           'name': line['name'],
           'chemical': line['chemical'] ?? (same.isNotEmpty ? same.first['chemical'] : ''),
-          'type': line['type'] ?? (same.isNotEmpty ? same.first['type'] : 'Tablet'),
+          'type': line['type'] ?? (same.isNotEmpty ? same.first['type'] : 'TABLET'),
           'batch': line['batch'] ?? '',
           'rack': line['rack'] ?? (same.isNotEmpty ? same.first['rack'] : ''),
           'quantity': addQty,

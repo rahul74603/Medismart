@@ -76,7 +76,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
       map.putIfAbsent(name, () => {
             'name': name,
             'chemical': (b['chemical'] ?? '').toString(),
-            'type': (b['type'] ?? 'Tablet').toString(),
+            'type': (b['type'] ?? 'TABLET').toString(),
             'rack': (b['rack'] ?? '').toString(),
             'rate': ((b['wholesale_price'] as num?)?.toDouble()) ?? 0.0,
             'mrp': ((b['price'] as num?)?.toDouble()) ?? 0.0,
@@ -343,7 +343,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                   _cart.add({
                     'name': nameCtrl.text.trim(),
                     'chemical': '',
-                    'type': 'Tablet',
+                    'type': 'TABLET',
                     'rack': '',
                     'batch': batchCtrl.text.trim(),
                     'barcode': barcodeCtrl.text.trim(),

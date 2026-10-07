@@ -3,6 +3,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'db_helper.dart';
+import 'services/app_prefs.dart';
 
 class PDFHelper {
   
@@ -42,6 +43,17 @@ class PDFHelper {
     String gstin = shop['gstin'] ?? "";
     String phone = shop['phone'] ?? "";
     String dlNo = shop['dl_no'] ?? "";
+
+    // UPI QR (Settings): uploaded shop QR image, else auto-generated UPI QR.
+    final upiId = await AppPrefs.getUpiId();
+    pw.MemoryImage? qrImg;
+    try {
+      final qp = await AppPrefs.getQrPath();
+      if (qp.isNotEmpty) {
+        final qf = File(qp);
+        if (await qf.exists()) qrImg = pw.MemoryImage(await qf.readAsBytes());
+      }
+    } catch (_) {}
 
     // --- TAX CALCULATION (Same as Old) ---
     double totalTaxableCalc = 0.0;
@@ -190,6 +202,24 @@ class PDFHelper {
                 )
               ]
             ),
+            // UPI QR footer (addition only — layout untouched)
+            if (upiId.isNotEmpty || qrImg != null) ...[
+              pw.SizedBox(height: 12),
+              pw.Center(
+                child: qrImg != null
+                    ? pw.Image(qrImg, width: 110, height: 110)
+                    : pw.BarcodeWidget(
+                        barcode: pw.Barcode.qrCode(),
+                        data: 'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(shopName)}&am=${netAmountVal.toStringAsFixed(2)}&cu=INR',
+                        width: 110,
+                        height: 110,
+                      ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Center(child: pw.Text("Scan to Pay (UPI)", style: const pw.TextStyle(fontSize: 9))),
+              if (upiId.isNotEmpty)
+                pw.Center(child: pw.Text(upiId, style: const pw.TextStyle(fontSize: 9))),
+            ],
           ];
         }
       )

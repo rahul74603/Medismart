@@ -24,6 +24,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _dlCtrl = TextEditingController(); 
   final _termsCtrl = TextEditingController();
   final _upiCtrl = TextEditingController();
+  String _qrPath = '';
 
   int _receiptWidth = 80;
   bool _autoPrint = true;
@@ -65,12 +66,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final width = await AppPrefs.getReceiptWidth();
       final auto = await AppPrefs.getAutoPrint();
       final upi = await AppPrefs.getUpiId();
+      final qr = await AppPrefs.getQrPath();
       final lastBk = await AppPrefs.getLastBackupLabel();
       if (mounted) {
         setState(() {
           _receiptWidth = width;
           _autoPrint = auto;
           _upiCtrl.text = upi;
+          _qrPath = qr;
           _lastBackup = lastBk;
         });
       }
@@ -336,6 +339,52 @@ void _restoreData() async {
                     activeColor: Colors.teal,
                     onChanged: (v) => setState(() => _autoPrint = v),
                   ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.white,
+                        ),
+                        child: _qrPath.isNotEmpty && File(_qrPath).existsSync()
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(File(_qrPath), fit: BoxFit.cover))
+                            : const Icon(Icons.qr_code_2, size: 40, color: Colors.grey),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text("Shop QR Code (bill pe chapega)",
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 8,
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: _uploadQr,
+                                  icon: const Icon(Icons.upload, size: 16),
+                                  label: const Text("UPLOAD"),
+                                ),
+                                if (_qrPath.isNotEmpty)
+                                  TextButton.icon(
+                                    onPressed: _removeQr,
+                                    icon: const Icon(Icons.delete, size: 16, color: Colors.red),
+                                    label: const Text("Remove", style: TextStyle(color: Colors.red)),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
                   TextField(
                     controller: _upiCtrl,
                     decoration: const InputDecoration(
@@ -561,6 +610,25 @@ void _restoreData() async {
     await StaffMode.setPin(c1.text.trim());
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('done'))));
+  }
+
+  Future<void> _uploadQr() async {
+    final res = await FilePicker.platform.pickFiles(type: FileType.image);
+    if (res == null || res.files.isEmpty) return;
+    final path = res.files.first.path ?? '';
+    if (path.isEmpty) return;
+    await AppPrefs.setQrPath(path);
+    if (!mounted) return;
+    setState(() => _qrPath = path);
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("QR set ho gaya! Ab bill pe yehi chapega."),
+        backgroundColor: Colors.green));
+  }
+
+  Future<void> _removeQr() async {
+    await AppPrefs.setQrPath('');
+    if (!mounted) return;
+    setState(() => _qrPath = '');
   }
 
   Widget _buildTextField(String label, TextEditingController ctrl, IconData icon, {bool isNumber = false}) {

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -86,11 +87,20 @@ class ReceiptHelper {
     final shop = await DBHelper.getShopDetails();
     final widthMm = await AppPrefs.getReceiptWidth();
     final upiId = await AppPrefs.getUpiId();
+    // Uploaded shop QR (Settings) — printed as-is; else auto UPI QR.
+    pw.MemoryImage? qrImg;
+    try {
+      final qp = await AppPrefs.getQrPath();
+      if (qp.isNotEmpty) {
+        final qf = File(qp);
+        if (await qf.exists()) qrImg = pw.MemoryImage(await qf.readAsBytes());
+      }
+    } catch (_) {}
     final double w = (widthMm == 58 ? 58 : 80) * PdfPageFormat.mm;
     final double h = _receiptHeight(
       itemCount: items.length,
       widthMm: widthMm,
-      hasQr: upiId.isNotEmpty,
+      hasQr: upiId.isNotEmpty || qrImg != null,
       hasTerms: _s(shop['terms']).isNotEmpty,
     );
 
@@ -237,19 +247,25 @@ class ReceiptHelper {
             ],
           ),
           divider(),
-          if (upiId.isNotEmpty) ...[
+          if (upiId.isNotEmpty || qrImg != null) ...[
             pw.Center(
-              child: pw.BarcodeWidget(
-                barcode: pw.Barcode.qrCode(),
-                data:
-                    'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(_s(shop['shop_name']))}&am=${_safeVal(billData['net_amount']).toStringAsFixed(2)}&cu=INR',
-                width: 90,
-                height: 90,
-              ),
+              child: qrImg != null
+                  ? pw.Image(qrImg, width: 90, height: 90)
+                  : pw.BarcodeWidget(
+                      barcode: pw.Barcode.qrCode(),
+                      data:
+                          'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(_s(shop['shop_name']))}&am=${_safeVal(billData['net_amount']).toStringAsFixed(2)}&cu=INR',
+                      width: 90,
+                      height: 90,
+                    ),
             ),
             pw.Center(
                 child: pw.Text('Scan to Pay (UPI)',
                     style: pw.TextStyle(font: mono, fontSize: 7.5))),
+            if (upiId.isNotEmpty)
+              pw.Center(
+                  child: pw.Text(upiId,
+                      style: pw.TextStyle(font: mono, fontSize: 7.5))),
             divider(),
           ],
           if (_s(shop['terms']).isNotEmpty)

@@ -27,6 +27,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
   List<Map<String, dynamic>> _cart = [];
 
   String _invoiceNo = "Loading...";
+  bool _manualInv = false;
   DateTime _billDate = DateTime.now();
   bool _isSaving = false;
   bool _isEditMode = false;
@@ -590,7 +591,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
           ((widget.editBillData!['net_amount'] as num?)?.toDouble()) ?? 0.0,
           (widget.editBillData!['payment_mode'] ?? 'Cash').toString(),
         );
-      } else {
+      } else if (!_manualInv) {
         _invoiceNo = await DBHelper.getNewInvoiceNo();
       }
 
@@ -678,6 +679,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
           _filteredProducts = _products;
           _cart = [];
           _invoiceNo = inv;
+          _manualInv = false;
           _billDate = DateTime.now();
           _nameCtrl.clear();
           _mobileCtrl.clear();
@@ -724,6 +726,49 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
     }
   }
 
+  Future<void> _editInvoiceNo() async {
+    final c = TextEditingController(text: _invoiceNo);
+    final v = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(Lang.t('inv_edit')),
+        content: TextField(
+          controller: c,
+          decoration: InputDecoration(hintText: Lang.t('inv_hint')),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(Lang.t('cancel'))),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, c.text.trim()),
+              child: Text(Lang.t('save'))),
+        ],
+      ),
+    );
+    if (v == null) return;
+    if (v.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(Lang.t('inv_empty')), backgroundColor: Colors.red));
+      return;
+    }
+    final excludeId = _isEditMode && widget.editBillData != null
+        ? ((widget.editBillData!['id'] as num?)?.toInt())
+        : null;
+    if (await DBHelper.invoiceNoExists(v, excludeId)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(Lang.t('inv_dup')), backgroundColor: Colors.red));
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _invoiceNo = v;
+      _manualInv = true;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = _calc();
@@ -743,6 +788,13 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
         ),
         backgroundColor: Colors.teal.shade700,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit, size: 20),
+            tooltip: Lang.t('inv_edit'),
+            onPressed: _editInvoiceNo,
+          ),
+        ],
       ),
       body: Column(
         children: [
