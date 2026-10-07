@@ -4,6 +4,7 @@ import 'package:printing/printing.dart';
 // 🔥 CORRECT IMPORT
 import '../pdf_helper.dart';
 import '../services/receipt_helper.dart';
+import '../services/whatsapp_helper.dart';
 
 class ViewBillScreen extends StatefulWidget {
   final Map<String, dynamic> billData;
@@ -23,6 +24,11 @@ class _ViewBillScreenState extends State<ViewBillScreen> {
       billData: widget.billData,
       items: widget.items
     );
+  }
+
+  Future<void> _whatsappBill() async {
+    await WhatsAppHelper.shareBillPdf(context, widget.billData,
+        items: widget.items);
   }
 
   Future<void> _printReceipt() async {
@@ -48,6 +54,11 @@ class _ViewBillScreenState extends State<ViewBillScreen> {
         backgroundColor: Colors.deepOrange,
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.chat),
+            tooltip: "Send Bill on WhatsApp",
+            onPressed: _whatsappBill,
+          ),
           IconButton(
             icon: const Icon(Icons.receipt_long),
             tooltip: "Thermal Receipt Print (58/80mm)",

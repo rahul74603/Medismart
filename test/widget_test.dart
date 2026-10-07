@@ -1,30 +1,29 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:medismart_ui/main.dart';
+import 'package:medismart_ui/services/whatsapp_helper.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('WhatsAppHelper.normalizeNumber', () {
+    test('10-digit mobile gets 91 prefix', () {
+      expect(WhatsAppHelper.normalizeNumber('9876543210'), '919876543210');
+    });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    test('number with spaces and dashes is cleaned', () {
+      expect(WhatsAppHelper.normalizeNumber('98-765 43210'), '919876543210');
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    test('leading zero is handled', () {
+      expect(WhatsAppHelper.normalizeNumber('09876543210'), '919876543210');
+    });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    test('already-prefixed 91 number is kept', () {
+      expect(WhatsAppHelper.normalizeNumber('919876543210'), '919876543210');
+    });
+
+    test('invalid numbers return empty string', () {
+      expect(WhatsAppHelper.normalizeNumber(''), '');
+      expect(WhatsAppHelper.normalizeNumber('12345'), '');
+      expect(WhatsAppHelper.normalizeNumber(null), '');
+    });
   });
 }

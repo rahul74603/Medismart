@@ -12,6 +12,7 @@ import 'db_helper.dart';
 import 'screens/billing_screen.dart';
 import 'screens/retail_billing_screen.dart';
 import 'screens/purchase_screen.dart';
+import 'screens/expiry_claim_screen.dart';
 // 🔥 FIX: Hide BillingScreen from history to avoid conflict
 import 'screens/history_screen.dart' hide BillingScreen;
 import 'services/auto_backup_service.dart'; 
@@ -162,6 +163,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   double todaySale = 0.0;
+  double todayProfit = 0.0;
   int lowStock = 0;
   int expiring = 0;
   String shopName = "MediSmart ERP";
@@ -180,6 +182,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if(mounted) {
       setState(() {
         todaySale = data['sale'];
+        todayProfit = (data['profit'] as num?)?.toDouble() ?? 0.0;
         lowStock = data['low_stock'];
         expiring = data['expiring'];
         if(shop['shop_name'] != null && shop['shop_name'].toString().isNotEmpty) {
@@ -275,7 +278,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         "₹${todaySale.toStringAsFixed(0)}", 
                         Icons.account_balance_wallet, 
                         const Color(0xFF10B981), // Emerald
-                        () => Navigator.push(context, MaterialPageRoute(builder: (c) => const ReportsScreen()))
+                        () => Navigator.push(context, MaterialPageRoute(builder: (c) => const ReportsScreen())),
+                        sub: "Profit ₹${todayProfit.toStringAsFixed(0)}",
                       ),
                       const SizedBox(width: 12),
                       _buildStatCard(
@@ -322,6 +326,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       _buildMenuBtn("Stock", FontAwesomeIcons.boxesStacked, const Color(0xFF0284C7), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const StockScreen())).then((_) => _loadStats())),
                       _buildMenuBtn("Purchase", FontAwesomeIcons.cartShopping, const Color(0xFF92400E), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const PurchaseScreen())).then((_) => _loadStats())),
                       _buildMenuBtn("Suppliers", FontAwesomeIcons.truckFast, const Color(0xFF0D9488), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const SuppliersScreen())).then((_) => _loadStats())),
+                      _buildMenuBtn("Expiry Claim", FontAwesomeIcons.hourglassHalf, const Color(0xFFDC2626), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const ExpiryClaimScreen())).then((_) => _loadStats())),
                       _buildMenuBtn("History", FontAwesomeIcons.clockRotateLeft, const Color(0xFF6366F1), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const HistoryScreen()))),
                       _buildMenuBtn("Customers", FontAwesomeIcons.users, const Color(0xFFD946EF), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const CustomersScreen()))),
                       _buildMenuBtn("Reports", FontAwesomeIcons.chartPie, const Color(0xFFF97316), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const ReportsScreen()))),
@@ -431,7 +436,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // --- WIDGETS ---
 
-  Widget _buildStatCard(String title, String val, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildStatCard(String title, String val, IconData icon, Color color, VoidCallback onTap, {String? sub}) {
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -463,6 +468,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Text(val, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B))),
               const SizedBox(height: 4),
               Text(title, style: TextStyle(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w600), textAlign: TextAlign.center),
+              if (sub != null)
+                Text(sub, style: const TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
             ],
           ),
         ),

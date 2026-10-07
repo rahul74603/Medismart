@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../db_helper.dart';
 import '../services/receipt_helper.dart';
 import '../services/app_prefs.dart';
+import '../services/whatsapp_helper.dart';
 
 /// FAST RETAIL (counter) BILLING
 /// Walk-in customer -> search -> tap -> qty -> print. No GSTIN/address needed.
@@ -87,6 +88,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
           'gst_percent': ((e['gst_percent'] as num?)?.toInt()) ?? 0,
           'sold_qty': ((e['sold_qty'] ?? e['qty']) as num?)?.toInt() ?? 0,
           'free_qty': ((e['free_qty'] as num?)?.toInt()) ?? 0,
+          'cost': ((e['cost_rate'] as num?)?.toDouble()) ?? 0.0,
           'max_qty': 99999,
           'total': ((e['total'] as num?)?.toDouble()) ?? 0.0,
           'expiryDate': e['expiryDate'] ?? '',
@@ -114,6 +116,9 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
           line['max_qty'] = stockQty + (line['sold_qty'] as int) + (line['free_qty'] as int);
           if ((line['gst_percent'] as int) == 0) {
             line['gst_percent'] = ((row['gst_percent'] as num?)?.toInt()) ?? 0;
+          }
+          if ((((line['cost'] as num?)?.toDouble()) ?? 0.0) == 0.0) {
+            line['cost'] = ((row['wholesale_price'] as num?)?.toDouble()) ?? 0.0;
           }
         }
       }
@@ -194,6 +199,33 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
     }
   }
 
+  /// Hardware scanner / keyboard Enter: barcode exact match = instant add.
+  void _onSearchSubmit() async {
+    final q = _searchCtrl.text.trim();
+    if (q.isEmpty) return;
+    // 1. Barcode exact match
+    final row = await DBHelper.getItemByBarcode(q);
+    if (row != null) {
+      final name = (row['name'] ?? '').toString();
+      try {
+        final prod = _products.firstWhere((p) => p['name'] == name);
+        _searchCtrl.clear();
+        _runFilter('');
+        setState(() {});
+        _showQtyDialog(prod);
+        return;
+      } catch (_) {}
+    }
+    // 2. Single filtered product = open it directly
+    if (_filteredProducts.length == 1) {
+      final prod = _filteredProducts.first;
+      _searchCtrl.clear();
+      _runFilter('');
+      setState(() {});
+      _showQtyDialog(prod);
+    }
+  }
+
   /// Qty of a batch row already used in current cart.
   int _cartQtyFor(int stockId) {
     int sum = 0;
@@ -224,7 +256,10 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
   }
 
   // ---------- QTY DIALOG (fast stepper) ----------
-  void _showQtyDialog(Map<String, dynamic> product) {
+  void _showQtyDialog(Map<String, dynamic> product) async {
+    final List<Map<String, dynamic>> subs =
+        await DBHelper.getSubstitutes((product['name'] ?? '').toString());
+    if (!mounted) return;
     final List<Map<String, dynamic>> batches =
         List<Map<String, dynamic>>.from(product['batches'] as List);
     int inStock = batches.fold(
@@ -278,7 +313,8 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                         fontSize: 11, color: Colors.teal)),
             ],
           ),
-          content: Column(
+          content: SingleChildScrollView(
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
@@ -337,7 +373,58 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                   isDense: true,
                 ),
               ),
+              if (subs.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Same salt, saste options:",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: Colors.green)),
+                      const SizedBox(height: 6),
+                      ...subs.take(3).map((s) => InkWell(
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              _showQtyDialog(s);
+                            },
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(s['name'],
+                                        style: const TextStyle(
+                                            fontSize: 13)),
+                                  ),
+                                  Text(
+                                      "₹${((s['mrp'] as num).toDouble()).toStringAsFixed(1)} • ${s['total_qty']}",
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: Colors.green)),
+                                ],
+                              ),
+                            ),
+                          )),
+                    ],
+                  ),
+                ),
+              ],
             ],
+            ),
           ),
           actions: [
             TextButton(
@@ -372,6 +459,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                       'batch': row['batch'] ?? '',
                       'mrp': (((row['price'] as num?)?.toDouble()) ?? rate),
                       'price': rate,
+                      'cost': (((row['wholesale_price'] as num?)?.toDouble()) ?? 0.0),
                       'gst_percent':
                           (((row['gst_percent'] as num?)?.toInt()) ?? 0),
                       'sold_qty': take,
@@ -536,12 +624,13 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                 'free_qty': l['free_qty'] ?? 0,
                 'price': l['price'],
                 'mrp': l['mrp'] ?? 0,
+                'cost_rate': l['cost'] ?? 0,
                 'total': l['total'] ?? 0,
                 'gst_percent': l['gst_percent'] ?? 0,
               })
           .toList();
 
-      await DBHelper.saveBill(billData, itemsForDB);
+      billData['id'] = await DBHelper.saveBill(billData, itemsForDB);
 
       if (!mounted) return;
 
@@ -574,6 +663,10 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
       if (_isEditMode) {
         Navigator.pop(context);
       } else {
+        // WhatsApp bill option (if mobile number hai)
+        if (_mobileCtrl.text.trim().length == 10) {
+          await _showWhatsAppOption(billData);
+        }
         // Fresh bill for next customer (fast counter flow)
         final batches = await DBHelper.getItems();
         final inv = await DBHelper.getNewInvoiceNo();
@@ -599,6 +692,34 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _showWhatsAppOption(Map<String, dynamic> billData) async {
+    if (!mounted) return;
+    final send = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text("Bill Saved!"),
+        content: Text(
+            "${billData['invoice_no']} • ₹${((billData['net_amount'] as num?)?.toDouble() ?? 0).toStringAsFixed(0)}\n\nCustomer ko WhatsApp pe bill bhejein?"),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text("Skip")),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(c, true),
+            icon: const Icon(Icons.chat, size: 18),
+            label: const Text("WHATSAPP"),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white),
+          ),
+        ],
+      ),
+    );
+    if (send == true && mounted) {
+      await WhatsAppHelper.shareBillPdf(context, billData);
     }
   }
 
@@ -671,6 +792,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
             child: TextField(
               controller: _searchCtrl,
               onChanged: _runFilter,
+              onSubmitted: (_) => _onSearchSubmit(),
               autofocus: false,
               decoration: InputDecoration(
                 hintText: "🔍 Search dawai ya salt... (jaise: Dolo)",

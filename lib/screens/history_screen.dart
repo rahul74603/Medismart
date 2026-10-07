@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import '../db_helper.dart';
 import '../pdf_helper.dart';
 import '../services/receipt_helper.dart';
+import '../services/whatsapp_helper.dart';
 import 'billing_screen.dart';
 import 'retail_billing_screen.dart';
 import 'sales_return_screen.dart';
@@ -98,6 +99,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
+  void _whatsappBill(Map<String, dynamic> bill) async {
+    await WhatsAppHelper.shareBillPdf(context, bill);
+  }
+
   void _viewBill(Map<String, dynamic> bill) async {
     final items = await DBHelper.getBillItems(bill['id']);
     Navigator.push(context, MaterialPageRoute(
@@ -175,6 +180,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             if (val == 'edit') _editBill(bill);
                             if (val == 'return') _returnBill(bill);
                             if (val == 'share') _openPDF(bill);
+                            if (val == 'whatsapp') _whatsappBill(bill);
                             if (val == 'delete') _deleteBill(bill);
                           },
                           itemBuilder: (context) => const [
@@ -183,6 +189,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, color: Colors.blue, size: 20), SizedBox(width: 10), Text("Edit Bill")])),
                             PopupMenuItem(value: 'return', child: Row(children: [Icon(Icons.assignment_return, color: Colors.deepPurple, size: 20), SizedBox(width: 10), Text("Sales Return")])),
                             PopupMenuItem(value: 'share', child: Row(children: [Icon(Icons.share, color: Colors.deepOrange, size: 20), SizedBox(width: 10), Text("Share PDF")])),
+                            PopupMenuItem(value: 'whatsapp', child: Row(children: [Icon(Icons.chat, color: Colors.green, size: 20), SizedBox(width: 10), Text("WhatsApp Bill")])),
                             PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red, size: 20), SizedBox(width: 10), Text("Delete Bill")])),
                           ],
                         ),

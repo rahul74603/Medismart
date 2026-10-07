@@ -242,10 +242,8 @@ void _restoreData() async {
                 await db.delete('purchase_items');
                 await db.delete('sales_returns');
                 await db.delete('sales_return_items');
-                await db.delete('purchases');
-                await db.delete('purchase_items');
-                await db.delete('sales_returns');
-                await db.delete('sales_return_items');
+                await db.delete('supplier_claims');
+                await db.delete('supplier_claim_items');
                 Navigator.pop(ctx);
                 if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("App Data Reset Successfully!")));
               }

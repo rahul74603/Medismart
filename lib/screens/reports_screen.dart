@@ -26,6 +26,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
   double _totalUdhaar = 0.0;
   int _totalBills = 0;
   double _avgBillValue = 0.0;
+  double _profit = 0.0;
+  double _margin = 0.0;
 
   // Chart Data
   Map<String, double> _dailySales = {};
@@ -40,9 +42,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   void _loadData() async {
     final data = await DBHelper.getAllBills();
+    final pf = await DBHelper.getProfit(_startDate, _endDate);
     if(mounted) {
       setState(() {
         _applyDateFilter(data);
+        _profit = ((pf['profit'] as num?)?.toDouble()) ?? 0.0;
+        _margin = _totalSale > 0 ? (_profit / _totalSale) * 100 : 0.0;
         _isLoading = false;
       });
     }
@@ -148,6 +153,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               pw.Text("Summary:", style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
               pw.Bullet(text: "Total Orders Processed: $_totalBills"),
               pw.Bullet(text: "Average Bill Value: Rs. ${_avgBillValue.toStringAsFixed(0)}"),
+              pw.Bullet(text: "Estimated Profit: Rs. ${_profit.toStringAsFixed(0)} (${_margin.toStringAsFixed(1)}% margin)"),
               pw.Bullet(text: "Cash Recovery Rate: ${(_totalSale > 0 ? (_totalCash/_totalSale)*100 : 0).toStringAsFixed(1)}%"),
               
               pw.Spacer(),
@@ -245,6 +251,34 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(20)),
                       child: Text("$_totalBills Orders Processed", style: const TextStyle(color: Colors.white, fontSize: 12)),
                     )
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // --- PROFIT STRIP ---
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text("Est. Profit",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 15)),
+                    Text(
+                        "₹${_profit.toStringAsFixed(0)} (${_margin.toStringAsFixed(1)}%)",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: Colors.green.shade800)),
                   ],
                 ),
               ),

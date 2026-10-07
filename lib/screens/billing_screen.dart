@@ -108,6 +108,7 @@ class _BillingScreenState extends State<BillingScreen> {
           'gst_percent': e['gst_percent'] ?? 0,
           'sold_qty': (e['sold_qty'] ?? e['qty']) as int? ?? 0,
           'free_qty': (e['free_qty'] as int?) ?? 0,
+          'cost': ((e!['cost_rate'] as num?)?.toDouble()) ?? 0.0,
           'max_qty': 99999,
           'total': (e['total'] as num?)?.toDouble() ?? 0.0
         };
@@ -129,6 +130,9 @@ class _BillingScreenState extends State<BillingScreen> {
             // If bill item doesn't have GST percent, get it from stock item
             if (cartItem['gst_percent'] == 0) {
               cartItem['gst_percent'] = stockItem['gst_percent'] ?? 0;
+            }
+            if ((((cartItem['cost'] as num?)?.toDouble()) ?? 0.0) == 0.0) {
+              cartItem['cost'] = ((stockItem['wholesale_price'] as num?)?.toDouble()) ?? 0.0;
             }
             int stockQty = (stockItem['quantity'] as num?)?.toInt() ?? 0;
             cartItem['max_qty'] = stockQty + cartItem['sold_qty'] + cartItem['free_qty'];
@@ -181,7 +185,10 @@ class _BillingScreenState extends State<BillingScreen> {
     }
   }
 
-  void _addToCartDialog(Map<String, dynamic> item) {
+  void _addToCartDialog(Map<String, dynamic> item) async {
+    final List<Map<String, dynamic>> subs =
+        await DBHelper.getSubstitutes((item['name'] ?? '').toString());
+    if (!mounted) return;
     TextEditingController qtyCtrl = TextEditingController(text: "");
     TextEditingController freeQtyCtrl = TextEditingController(text: "0");
     
@@ -245,6 +252,70 @@ class _BillingScreenState extends State<BillingScreen> {
                 });
               },
             ),
+            if (subs.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("Same salt, saste options:",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: Colors.green)),
+                    const SizedBox(height: 6),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 110),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            ...subs.take(4).map((s) => InkWell(
+                                  onTap: () {
+                                    Navigator.pop(ctx);
+                                    final List<Map<String, dynamic>> sb =
+                                        List<Map<String, dynamic>>.from(
+                                            s['batches'] as List);
+                                    if (sb.isNotEmpty) {
+                                      _addToCartDialog(sb.first);
+                                    }
+                                  },
+                                  child: Padding(
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 4),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Text(s['name'],
+                                              style: const TextStyle(
+                                                  fontSize: 13)),
+                                        ),
+                                        Text(
+                                            "₹${((s['mrp'] as num).toDouble()).toStringAsFixed(1)} • ${s['total_qty']}",
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13,
+                                                color: Colors.green)),
+                                      ],
+                                    ),
+                                  ),
+                                )),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             Row(children: [
                 Expanded(child: TextField(controller: qtyCtrl, keyboardType: TextInputType.number, autofocus: true, decoration: const InputDecoration(labelText: "Bill Qty", border: OutlineInputBorder()), inputFormatters: [FilteringTextInputFormatter.digitsOnly])),
@@ -311,6 +382,7 @@ class _BillingScreenState extends State<BillingScreen> {
                       'batch': b['batch'] ?? '-',
                       'mrp': bMrp,
                       'price': rate,
+                      'cost': (((b['wholesale_price'] as num?)?.toDouble()) ?? 0.0),
                       'gst_percent': b['gst_percent'] ?? 0,
                       'sold_qty': q,
                       'free_qty': f,
@@ -521,6 +593,7 @@ class _BillingScreenState extends State<BillingScreen> {
           'free_qty': item['free_qty'] ?? 0,
           'price': item['price'],
           'mrp': item['mrp'] ?? 0,
+          'cost_rate': item['cost'] ?? 0,
           'total': item['total'] ?? 0,
           'gst_percent': item['gst_percent'] ?? 0,
           'expiryDate': item['expiryDate'] ?? '',
@@ -569,6 +642,21 @@ class _BillingScreenState extends State<BillingScreen> {
       setState(() {
         _filteredItems = _allItems.where((item) => item['name'].toLowerCase().contains(keyword.toLowerCase())).toList();
       });
+    }
+  }
+
+  /// Hardware scanner / keyboard Enter: barcode exact match = instant add.
+  void _onSearchSubmit() async {
+    final q = _searchCtrl.text.trim();
+    if (q.isEmpty) return;
+    final row = await DBHelper.getItemByBarcode(q);
+    if (row != null) {
+      try {
+        final match = _allItems.firstWhere((b) => b['id'] == row['id']);
+        _searchCtrl.clear();
+        _runFilter('');
+        _addToCartDialog(match);
+      } catch (_) {}
     }
   }
 
@@ -743,6 +831,7 @@ class _BillingScreenState extends State<BillingScreen> {
                     child: TextField(
                       controller: _searchCtrl,
                       onChanged: _runFilter,
+                      onSubmitted: (_) => _onSearchSubmit(),
                       onTap: () => setState(() => _isSearchFocused = true),
                       decoration: InputDecoration(
                         hintText: "Search Medicine...",

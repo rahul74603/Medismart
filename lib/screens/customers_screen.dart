@@ -9,6 +9,7 @@ import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../db_helper.dart';
+import '../services/whatsapp_helper.dart';
 
 class CustomersScreen extends StatefulWidget {
   const CustomersScreen({super.key});
@@ -310,11 +311,14 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                   if (val == 'pay') _showPaymentDialog(cust);
                                   if (val == 'view') _viewLedger(cust);
                                   if (val == 'share') _shareLedger(cust);
+                                  if (val == 'remind') WhatsAppHelper.sendUdhaarReminder(context, cust);
                                 },
                                 itemBuilder: (context) => [
                                   const PopupMenuItem(value: 'pay', child: Row(children: [Icon(Icons.payment, color: Colors.green), SizedBox(width: 10), Text("Receive Payment")])),
                                   const PopupMenuItem(value: 'view', child: Row(children: [Icon(Icons.visibility, color: Colors.blue), SizedBox(width: 10), Text("View Ledger")])),
                                   const PopupMenuItem(value: 'share', child: Row(children: [Icon(Icons.share, color: Colors.orange), SizedBox(width: 10), Text("Share Ledger")])),
+                                  if (due > 0)
+                                    const PopupMenuItem(value: 'remind', child: Row(children: [Icon(Icons.chat, color: Colors.green), SizedBox(width: 10), Text("WhatsApp Reminder")])),
                                 ]
                               )
                             ],

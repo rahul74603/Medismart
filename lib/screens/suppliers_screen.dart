@@ -12,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart'; // 📞 CALL & SMS KE LIYE ZARU
 import '../db_helper.dart';
 import 'purchase_screen.dart';
 import 'purchase_history_screen.dart';
+import 'expiry_claim_screen.dart';
 
 class SuppliersScreen extends StatefulWidget {
   const SuppliersScreen({super.key});
@@ -286,6 +287,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                           
                           _actionBtn("Purchase", Icons.note_add, Colors.red, () => Navigator.push(context, MaterialPageRoute(builder: (_) => PurchaseScreen(supplierId: (s['id'] as num).toInt(), supplierName: s['name'].toString()))).then((_) => _loadSuppliers())),
                           _actionBtn("Bills", Icons.receipt_long, Colors.teal, () => Navigator.push(context, MaterialPageRoute(builder: (_) => PurchaseHistoryScreen(supplierId: (s['id'] as num).toInt(), supplierName: s['name'].toString())))),
+                          _actionBtn("Claims", Icons.fact_check, Colors.red, () => Navigator.push(context, MaterialPageRoute(builder: (_) => ExpiryClaimScreen(supplierId: (s['id'] as num).toInt(), supplierName: s['name'].toString())))),
                           _actionBtn("Payment", Icons.payment, Colors.green, () => _showTransactionDialog(s, 'Payment')),
                           _actionBtn("Ledger", Icons.picture_as_pdf, Colors.blue, () => _viewLedger(s)),
                           _actionBtn("Share", Icons.share, Colors.orange, () => _shareLedger(s)),

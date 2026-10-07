@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../db_helper.dart';
+import 'supplier_order_screen.dart';
+import 'expiry_claim_screen.dart';
 
 class AlertsScreen extends StatefulWidget {
   final String alertType; // 'STOCK' or 'EXPIRY'
@@ -99,6 +102,35 @@ class _AlertsScreenState extends State<AlertsScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         centerTitle: true,
       ),
+      floatingActionButton: (!_isLoading && _filteredItems.isNotEmpty)
+          ? FloatingActionButton.extended(
+              backgroundColor: themeColor,
+              onPressed: () {
+                if (widget.alertType == 'STOCK') {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const SupplierOrderScreen()));
+                } else {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ExpiryClaimScreen()));
+                }
+              },
+              icon: Icon(
+                  widget.alertType == 'STOCK'
+                      ? FontAwesomeIcons.whatsapp
+                      : Icons.fact_check,
+                  color: Colors.white),
+              label: Text(
+                  widget.alertType == 'STOCK'
+                      ? "Order on WhatsApp"
+                      : "Claim Manager",
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold)),
+            )
+          : null,
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: themeColor))
           : _filteredItems.isEmpty

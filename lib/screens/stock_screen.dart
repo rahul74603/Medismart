@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../db_helper.dart';
+import 'supplier_order_screen.dart';
 
 /// STOCK MANAGEMENT - grouped by product, batches inside (FEFO ordered).
 /// One product can have multiple batches; billing auto-picks earliest expiry.
@@ -185,6 +186,8 @@ class _StockScreenState extends State<StockScreen> {
     final chemicalCtrl = TextEditingController(text: item?['chemical'] ?? prefill?['chemical'] ?? '');
     final batchCtrl = TextEditingController(text: item?['batch']);
     final rackCtrl = TextEditingController(text: item?['rack'] ?? prefill?['rack'] ?? '');
+    final barcodeCtrl = TextEditingController(text: item?['barcode'] ?? prefill?['barcode'] ?? '');
+    final minStockCtrl = TextEditingController(text: item?['min_stock']?.toString() ?? '10');
     final qtyCtrl = TextEditingController(text: item?['quantity']?.toString());
 
     final priceCtrl = TextEditingController(text: item?['price']?.toString() ?? prefill?['price']?.toString() ?? '');
@@ -280,6 +283,12 @@ class _StockScreenState extends State<StockScreen> {
                       Expanded(child: _buildInput(batchCtrl, "Batch", "B-102", Icons.qr_code)),
                       const SizedBox(width: 10),
                       Expanded(child: _buildInput(rackCtrl, "Rack", "A-1", Icons.shelves)),
+                    ]),
+                    const SizedBox(height: 12),
+                    Row(children: [
+                      Expanded(child: _buildInput(barcodeCtrl, "Barcode", "Scan/type", Icons.qr_code)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _buildInput(minStockCtrl, "Min Stock", "10", Icons.warning_amber, isNum: true)),
                     ]),
                     const SizedBox(height: 12),
 
@@ -390,6 +399,8 @@ class _StockScreenState extends State<StockScreen> {
                         'type': _selectedType == 'Strip' ? 'Tablet' : _selectedType,
                         'batch': batchCtrl.text,
                         'rack': rackCtrl.text,
+                        'barcode': barcodeCtrl.text.trim(),
+                        'min_stock': int.tryParse(minStockCtrl.text) ?? 10,
                         'quantity': finalQty,
                         'price': double.parse(finalPricePerUnit.toStringAsFixed(4)),
                         'wholesale_price': double.parse(finalWholesalePerUnit.toStringAsFixed(4)),
@@ -468,6 +479,14 @@ class _StockScreenState extends State<StockScreen> {
         centerTitle: true,
         flexibleSpace: Container(decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFFFF6D00), Color(0xFFFF9100)], begin: Alignment.topLeft, end: Alignment.bottomRight))),
         elevation: 5, iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_shopping_cart, color: Colors.white),
+            tooltip: "Order low stock on WhatsApp",
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const SupplierOrderScreen())),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -639,6 +658,7 @@ class _StockScreenState extends State<StockScreen> {
                                   'price': rows.first['price'],
                                   'wholesale_price': rows.first['wholesale_price'],
                                   'gst_percent': rows.first['gst_percent'],
+                                  'barcode': rows.first['barcode'] ?? '',
                                 }),
                                 icon: const Icon(Icons.add, size: 18),
                                 label: const Text("Add Batch"),

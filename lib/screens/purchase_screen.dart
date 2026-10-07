@@ -158,6 +158,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   // ---------- ADD ITEM DIALOG (existing product) ----------
   void _showAddItemDialog(Map<String, dynamic> product) {
     final batchCtrl = TextEditingController();
+    final barcodeCtrl = TextEditingController(text: (product['barcode'] ?? '').toString());
     final expiryCtrl = TextEditingController();
     final qtyCtrl = TextEditingController(text: "");
     final freeCtrl = TextEditingController(text: "0");
@@ -196,6 +197,8 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                     ),
                   ),
                 ]),
+                const SizedBox(height: 10),
+                TextField(controller: barcodeCtrl, decoration: const InputDecoration(labelText: "Barcode (scan/type)", border: OutlineInputBorder(), isDense: true, prefixIcon: Icon(Icons.qr_code, size: 18))),
                 const SizedBox(height: 10),
                 Row(children: [
                   Expanded(child: TextField(controller: qtyCtrl, keyboardType: TextInputType.number, autofocus: true, decoration: const InputDecoration(labelText: "Qty *", border: OutlineInputBorder(), isDense: true))),
@@ -238,6 +241,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                     'type': product['type'],
                     'rack': product['rack'],
                     'batch': batchCtrl.text.trim(),
+                    'barcode': barcodeCtrl.text.trim(),
                     'expiry': expiryCtrl.text.trim(),
                     'qty': qty,
                     'free_qty': free,
@@ -264,6 +268,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   void _showNewMedicineDialog() {
     final nameCtrl = TextEditingController(text: _searchCtrl.text.trim());
     final batchCtrl = TextEditingController();
+    final barcodeCtrl = TextEditingController();
     final expiryCtrl = TextEditingController();
     final qtyCtrl = TextEditingController();
     final freeCtrl = TextEditingController(text: "0");
@@ -304,6 +309,8 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                   Expanded(child: TextField(controller: freeCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Free", border: OutlineInputBorder(), isDense: true))),
                 ]),
                 const SizedBox(height: 10),
+                TextField(controller: barcodeCtrl, decoration: const InputDecoration(labelText: "Barcode (scan/type)", border: OutlineInputBorder(), isDense: true, prefixIcon: Icon(Icons.qr_code, size: 18))),
+                const SizedBox(height: 10),
                 Row(children: [
                   Expanded(child: TextField(controller: rateCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: "Pur. Rate *", border: OutlineInputBorder(), isDense: true, prefixText: "₹"))),
                   const SizedBox(width: 8),
@@ -339,6 +346,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                     'type': 'Tablet',
                     'rack': '',
                     'batch': batchCtrl.text.trim(),
+                    'barcode': barcodeCtrl.text.trim(),
                     'expiry': expiryCtrl.text.trim(),
                     'qty': qty,
                     'free_qty': free,

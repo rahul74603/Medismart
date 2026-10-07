@@ -24,8 +24,8 @@ class DBHelper {
     String path = await getDbPath();
     return await openDatabase(
       path,
-      // 🔥 VERSION 12: Purchase + Sales Return tables, bill_items.stock_id (batch-wise stock)
-      version: 12,
+      // 🔥 VERSION 13: barcode, bill cost_rate (profit), supplier expiry claims
+      version: 13,
       onCreate: (db, version) async {
 
         // 1. ITEMS / STOCK TABLE (one row = one batch of a product)
@@ -42,7 +42,8 @@ class DBHelper {
             wholesale_price REAL,
             gst_percent INTEGER DEFAULT 0,
             expiryDate TEXT,
-            min_stock INTEGER DEFAULT 10
+            min_stock INTEGER DEFAULT 10,
+            barcode TEXT DEFAULT ''
           )
         ''');
 
@@ -96,7 +97,8 @@ class DBHelper {
             total REAL,
             gst_percent INTEGER DEFAULT 0,
             expiryDate TEXT,
-            type TEXT
+            type TEXT,
+            cost_rate REAL DEFAULT 0
           )
         ''');
 
@@ -214,6 +216,34 @@ class DBHelper {
             stock_id INTEGER DEFAULT 0,
             qty INTEGER,
             free_qty INTEGER DEFAULT 0,
+            rate REAL,
+            total REAL
+          )
+        ''');
+
+        // 13. SUPPLIER CLAIMS (expiry / short-expiry maal wapas)
+        await db.execute('''
+          CREATE TABLE supplier_claims(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            claim_no TEXT UNIQUE,
+            supplier_id INTEGER,
+            supplier_name TEXT,
+            date TEXT,
+            total_value REAL,
+            status TEXT DEFAULT 'Pending',
+            remark TEXT
+          )
+        ''');
+
+        // 14. SUPPLIER CLAIM ITEMS
+        await db.execute('''
+          CREATE TABLE supplier_claim_items(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            claim_id INTEGER,
+            item_name TEXT,
+            batch TEXT,
+            expiry TEXT,
+            qty INTEGER,
             rate REAL,
             total REAL
           )
@@ -366,6 +396,43 @@ class DBHelper {
 
           print("Upgrade to v12 applied successfully.");
         }
+
+        // 🔥 V13: barcode, profit cost_rate, supplier expiry claims
+        if (oldVersion < 13) {
+          try {
+            await db.execute("ALTER TABLE items ADD COLUMN barcode TEXT DEFAULT ''");
+          } catch (e) { print("barcode already exists or error: $e"); }
+          try {
+            await db.execute("ALTER TABLE bill_items ADD COLUMN cost_rate REAL DEFAULT 0");
+          } catch (e) { print("cost_rate already exists or error: $e"); }
+          try {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS supplier_claims(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                claim_no TEXT UNIQUE,
+                supplier_id INTEGER,
+                supplier_name TEXT,
+                date TEXT,
+                total_value REAL,
+                status TEXT DEFAULT 'Pending',
+                remark TEXT
+              )
+            ''');
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS supplier_claim_items(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                claim_id INTEGER,
+                item_name TEXT,
+                batch TEXT,
+                expiry TEXT,
+                qty INTEGER,
+                rate REAL,
+                total REAL
+              )
+            ''');
+          } catch (e) { print("V13 claims table error: $e"); }
+          print("Upgrade to v13 applied successfully.");
+        }
       },
     );
   }
@@ -448,7 +515,15 @@ class DBHelper {
     final saleRes = await db.rawQuery("SELECT SUM(net_amount) as total FROM bills WHERE date LIKE '$today%'");
     double sale = (saleRes.first['total'] as double?) ?? 0.0;
 
-    return {'sale': sale, 'low_stock': lowStock, 'expiring': expiringCount};
+    final nowDt = DateTime.now();
+    final dayStart = DateTime(nowDt.year, nowDt.month, nowDt.day);
+    double profit = 0.0;
+    try {
+      final pf = await getProfit(dayStart, dayStart);
+      profit = ((pf['profit'] as num?)?.toDouble()) ?? 0.0;
+    } catch (_) {}
+
+    return {'sale': sale, 'low_stock': lowStock, 'expiring': expiringCount, 'profit': profit};
   }
 
   /// Delete-safe numbering (MAX(id)+1 instead of COUNT).
@@ -473,7 +548,7 @@ class DBHelper {
     return "SR-${n.toString().padLeft(4, '0')}";
   }
 
-  static Future<void> saveBill(Map<String, dynamic> bill, List<Map<String, dynamic>> items) async {
+  static Future<int> saveBill(Map<String, dynamic> bill, List<Map<String, dynamic>> items) async {
     final db = await database;
 
     // Prepare Bill Data safely (Remove nulls)
@@ -510,6 +585,7 @@ class DBHelper {
         'free_qty': item['free_qty'] ?? 0,
         'rate': item['price'],
         'total': item['total'],
+        'cost_rate': item['cost_rate'] ?? item['cost'] ?? 0,
         'gst_percent': item['gst_percent'] ?? 0,
         'expiryDate': expiryDate,
         'type': type
@@ -575,6 +651,7 @@ class DBHelper {
         'balance': udhaar
       });
     }
+    return billId;
   }
 
   static Future<void> deleteBill(int id) async {
@@ -657,13 +734,17 @@ class DBHelper {
         String newExpiry = (line['expiry'] ?? '').toString().isEmpty
             ? (row['expiryDate'] ?? '').toString()
             : line['expiry'].toString();
-        await db.update('items', {
+        Map<String, dynamic> mergeUpdate = {
           'quantity': newQty,
           'price': line['mrp'],
           'wholesale_price': line['rate'],
           'gst_percent': line['gst_percent'] ?? 0,
           'expiryDate': newExpiry,
-        }, where: 'id = ?', whereArgs: [row['id']]);
+        };
+        if ((line['barcode'] ?? '').toString().isNotEmpty) {
+          mergeUpdate['barcode'] = line['barcode'].toString();
+        }
+        await db.update('items', mergeUpdate, where: 'id = ?', whereArgs: [row['id']]);
       } else {
         // Inherit type/chemical/rack from the same product if it exists
         final same = await db.query('items', where: 'name = ?', whereArgs: [line['name']], limit: 1);
@@ -679,6 +760,7 @@ class DBHelper {
           'gst_percent': line['gst_percent'] ?? 0,
           'expiryDate': (line['expiry'] ?? '').toString().isEmpty ? '01/01/2030' : line['expiry'],
           'min_stock': 10,
+          'barcode': (line['barcode'] ?? '').toString(),
         });
       }
     }
@@ -941,6 +1023,176 @@ class DBHelper {
 
   // --- BILLS ALIAS ---
   static Future<List<Map<String, dynamic>>> getBills() async => await getAllBills();
+
+  // --- SUPPLIER EXPIRY CLAIM FUNCTIONS ---
+
+  static Future<String> getNewClaimNo() async {
+    final db = await database;
+    var res = await db.rawQuery("SELECT COALESCE(MAX(id),0)+1 as nid FROM supplier_claims");
+    int n = ((res.first['nid'] as num?)?.toInt()) ?? 1;
+    return "CLM-${n.toString().padLeft(4, '0')}";
+  }
+
+  static Future<int> saveClaim(Map<String, dynamic> claim, List<Map<String, dynamic>> lines) async {
+    final db = await database;
+    int claimId = await db.insert('supplier_claims', claim);
+    for (var line in lines) {
+      await db.insert('supplier_claim_items', {
+        'claim_id': claimId,
+        'item_name': line['name'],
+        'batch': line['batch'] ?? '',
+        'expiry': line['expiry'] ?? '',
+        'qty': line['qty'],
+        'rate': line['rate'],
+        'total': line['total'],
+      });
+    }
+    return claimId;
+  }
+
+  static Future<List<Map<String, dynamic>>> getAllClaims() async =>
+      (await database).query('supplier_claims', orderBy: "id DESC");
+
+  static Future<List<Map<String, dynamic>>> getClaimsBySupplier(int supplierId) async =>
+      (await database).query('supplier_claims', where: "supplier_id = ?", whereArgs: [supplierId], orderBy: "id DESC");
+
+  static Future<List<Map<String, dynamic>>> getClaimItems(int claimId) async =>
+      (await database).query('supplier_claim_items', where: "claim_id = ?", whereArgs: [claimId]);
+
+  /// Settle a claim: stock minus + supplier udhaar kam + ledger entry.
+  static Future<void> settleClaim(int claimId) async {
+    final db = await database;
+    final cl = await db.query('supplier_claims', where: 'id = ?', whereArgs: [claimId], limit: 1);
+    if (cl.isEmpty) return;
+    final c = cl.first;
+    if ((c['status'] ?? '').toString() == 'Settled') return;
+
+    final items = await getClaimItems(claimId);
+    for (var it in items) {
+      int q = (((it['qty'] as num?)?.toInt()) ?? 0);
+      final rows = await db.query('items', where: 'name = ? AND batch = ?',
+          whereArgs: [(it['item_name'] ?? '').toString(), (it['batch'] ?? '').toString()], limit: 1);
+      if (rows.isNotEmpty) {
+        int have = (((rows.first['quantity'] as num?)?.toInt()) ?? 0);
+        int left = have - q;
+        if (left < 0) left = 0;
+        await db.update('items', {'quantity': left}, where: 'id = ?', whereArgs: [rows.first['id']]);
+      }
+    }
+
+    int supplierId = ((c['supplier_id'] as num?)?.toInt()) ?? 0;
+    double val = (c['total_value'] as num?)?.toDouble() ?? 0.0;
+    if (supplierId > 0 && val > 0) {
+      final sup = await db.query('suppliers', where: 'id = ?', whereArgs: [supplierId], limit: 1);
+      if (sup.isNotEmpty) {
+        double oldBal = (sup.first['balance'] as num?)?.toDouble() ?? 0.0;
+        double newBal = oldBal - val;
+        await db.update('suppliers', {'balance': newBal}, where: 'id = ?', whereArgs: [supplierId]);
+        await db.insert('supplier_ledger', {
+          'supplier_id': supplierId,
+          'date': DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now()),
+          'description': "Expiry Claim Settled (${c['claim_no']})",
+          'debit': val,
+          'credit': 0.0,
+          'balance': newBal
+        });
+      }
+    }
+    await db.update('supplier_claims', {'status': 'Settled'}, where: 'id = ?', whereArgs: [claimId]);
+  }
+
+  /// Delete a pending claim (no stock/balance impact).
+  static Future<void> deleteClaim(int claimId) async {
+    final db = await database;
+    final cl = await db.query('supplier_claims', where: 'id = ?', whereArgs: [claimId], limit: 1);
+    if (cl.isEmpty || (cl.first['status'] ?? '').toString() == 'Settled') return;
+    await db.delete('supplier_claim_items', where: "claim_id = ?", whereArgs: [claimId]);
+    await db.delete('supplier_claims', where: "id = ?", whereArgs: [claimId]);
+  }
+
+  // --- BARCODE LOOKUP ---
+  static Future<Map<String, dynamic>?> getItemByBarcode(String code) async {
+    final db = await database;
+    final res = await db.query('items', where: "barcode = ?", whereArgs: [code.trim()], limit: 1);
+    return res.isEmpty ? null : res.first;
+  }
+
+  // --- SALT SUBSTITUTES (same salt, cheaper options in stock) ---
+  static Future<List<Map<String, dynamic>>> getSubstitutes(String productName) async {
+    final db = await database;
+    final mine = await db.query('items', where: 'name = ?', whereArgs: [productName]);
+    if (mine.isEmpty) return [];
+    final chem = ((mine.first['chemical'] ?? '')).toString().trim();
+    if (chem.isEmpty) return [];
+    double myPrice = double.maxFinite;
+    for (var r in mine) {
+      double p = ((r['price'] as num?)?.toDouble()) ?? 0.0;
+      if (p > 0 && p < myPrice) myPrice = p;
+    }
+    final rows = await db.query('items',
+        where: 'chemical = ? AND name != ? AND quantity > 0', whereArgs: [mine.first['chemical'], productName]);
+    final Map<String, List<Map<String, dynamic>>> map = {};
+    for (var r in rows) {
+      final nm = (r['name'] ?? '').toString();
+      if (nm.isEmpty) continue;
+      map.putIfAbsent(nm, () => []).add(r);
+    }
+    final out = <Map<String, dynamic>>[];
+    map.forEach((nm, rs) {
+      double minP = double.maxFinite;
+      int total = 0;
+      for (var r in rs) {
+        double p = ((r['price'] as num?)?.toDouble()) ?? 0.0;
+        if (p > 0 && p < minP) minP = p;
+        total += (((r['quantity'] as num?)?.toInt()) ?? 0);
+      }
+      if (minP == double.maxFinite) return;
+      if (minP < myPrice) {
+        out.add({
+          'name': nm,
+          'chemical': chem,
+          'mrp': minP,
+          'total_qty': total,
+          'batches': sortBatchesFEFO(rs),
+        });
+      }
+    });
+    out.sort((a, b) => ((a['mrp'] as num).toDouble()).compareTo((b['mrp'] as num).toDouble()));
+    return out;
+  }
+
+  // --- PROFIT (sale rate minus cost rate, tracked lines only) ---
+  static Future<Map<String, dynamic>> getProfit(DateTime start, DateTime end) async {
+    double profit = 0.0;
+    int untracked = 0;
+    try {
+      final bills = await getAllBills();
+      final s = DateTime(start.year, start.month, start.day);
+      final e = DateTime(end.year, end.month, end.day, 23, 59, 59);
+      for (var bill in bills) {
+        try {
+          DateTime bd = DateFormat('dd/MM/yyyy').parse(bill['date'].toString().split(' ')[0]);
+          if (bd.isBefore(s) || bd.isAfter(e)) continue;
+        } catch (_) {
+          continue;
+        }
+        final lines = await getBillItems((bill['id'] as num).toInt());
+        for (var l in lines) {
+          double cost = ((l['cost_rate'] as num?)?.toDouble()) ?? 0.0;
+          int qty = ((l['qty'] as num?)?.toInt()) ?? 0;
+          if (cost > 0 && qty > 0) {
+            double rate = ((l['rate'] as num?)?.toDouble()) ?? 0.0;
+            profit += (rate - cost) * qty;
+          } else if (qty > 0) {
+            untracked++;
+          }
+        }
+      }
+    } catch (e) {
+      print('getProfit error: $e');
+    }
+    return {'profit': profit, 'untracked_lines': untracked};
+  }
 
   // 🔥🔥 BACKUP & RESTORE FUNCTIONS ADDED HERE 🔥🔥
 
