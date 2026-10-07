@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../db_helper.dart';
 import '../services/receipt_helper.dart';
+import '../services/lang_service.dart';
 
 /// SALES RETURN ENTRY - customer se dawai wapas lena.
 /// Stock restores to the SAME batch. Refund = Cash or Udhaar adjust.
@@ -143,19 +144,19 @@ class _SalesReturnScreenState extends State<SalesReturnScreen> {
       bool? wantPrint = await showDialog<bool>(
         context: context,
         builder: (c) => AlertDialog(
-          title: const Text("Return Saved! ✓"),
+          title: Text(Lang.t('sr_saved')),
           content: Text(
               "$_returnNo\nRefund: Rs.${_total.toStringAsFixed(0)} (${_refundMode == 'Udhaar' ? 'Udhaar me adjust' : 'Cash'})\n\nReturn slip print karein?"),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(c, false),
-                child: const Text("No")),
+                child: Text(Lang.t('no'))),
             ElevatedButton(
               onPressed: () => Navigator.pop(c, true),
               style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.teal,
                   foregroundColor: Colors.white),
-              child: const Text("PRINT"),
+              child: Text(Lang.t('sr_print')),
             ),
           ],
         ),
@@ -191,7 +192,7 @@ class _SalesReturnScreenState extends State<SalesReturnScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Sales Return",
+            Text(Lang.t('hs_return'),
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             Text("Bill: ${widget.billData['invoice_no']} • $_returnNo",
                 style: const TextStyle(
@@ -492,7 +493,7 @@ class _ReturnsHistoryScreenState extends State<ReturnsHistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Sales Returns"),
+        title: Text(Lang.t('hs_returns')),
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
       ),

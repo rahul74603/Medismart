@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../db_helper.dart';
 import '../services/whatsapp_helper.dart';
+import '../services/lang_service.dart';
 
 /// EXPIRY CLAIM MANAGER
 /// Tab 1 - New Claim: expiring batches select karo -> supplier -> claim save + WhatsApp
@@ -245,16 +246,16 @@ class _ExpiryClaimScreenState extends State<ExpiryClaimScreen>
     bool confirm = await showDialog(
           context: context,
           builder: (c) => AlertDialog(
-            title: const Text("Settle Claim?"),
+            title: Text(Lang.t('ec_settle')),
             content: Text(
                 "${claim['claim_no']} settle hoga:\n• Stock se maal minus hoga\n• ${claim['supplier_name']} ka udhaar Rs.${(((claim['total_value'] as num?)?.toDouble()) ?? 0).toStringAsFixed(0)} kam hoga\n\nDistributor ne maal le liya / credit de diya?"),
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(c, false),
-                  child: const Text("NO")),
+                  child: Text(Lang.t('no'))),
               TextButton(
                   onPressed: () => Navigator.pop(c, true),
-                  child: const Text("YES, SETTLE",
+                  child: Text(Lang.t('ec_yes'),
                       style: TextStyle(color: Colors.green))),
             ],
           ),
@@ -264,7 +265,7 @@ class _ExpiryClaimScreenState extends State<ExpiryClaimScreen>
     await DBHelper.settleClaim((claim['id'] as num).toInt());
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Claim settled! Stock + udhaar adjusted."),
+        content: Text(Lang.t('ec_settled')),
         backgroundColor: Colors.green));
     _loadClaims();
     _loadCandidates();
@@ -274,16 +275,16 @@ class _ExpiryClaimScreenState extends State<ExpiryClaimScreen>
     bool confirm = await showDialog(
           context: context,
           builder: (c) => AlertDialog(
-            title: const Text("Delete Claim?"),
+            title: Text(Lang.t('ec_del')),
             content: const Text("Pending claim delete ho jayega (koi stock change nahi hoga)."),
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(c, false),
-                  child: const Text("NO")),
+                  child: Text(Lang.t('no'))),
               TextButton(
                   onPressed: () => Navigator.pop(c, true),
                   child:
-                      const Text("YES", style: TextStyle(color: Colors.red))),
+                      Text(Lang.t('yes'), style: TextStyle(color: Colors.red))),
             ],
           ),
         ) ??
@@ -331,8 +332,8 @@ class _ExpiryClaimScreenState extends State<ExpiryClaimScreen>
       backgroundColor: const Color(0xFFF2F5F8),
       appBar: AppBar(
         title: Text(widget.supplierName != null
-            ? "Expiry Claims: ${widget.supplierName}"
-            : "Expiry Claim Manager"),
+            ? "${Lang.t('ec_claims')}: ${widget.supplierName}"
+            : Lang.t('ec_title')),
         backgroundColor: Colors.red.shade700,
         foregroundColor: Colors.white,
         bottom: TabBar(
@@ -341,8 +342,8 @@ class _ExpiryClaimScreenState extends State<ExpiryClaimScreen>
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           tabs: const [
-            Tab(text: "New Claim", icon: Icon(Icons.add_box, size: 18)),
-            Tab(text: "History", icon: Icon(Icons.history, size: 18)),
+            Tab(text: Lang.t('ec_new'), icon: Icon(Icons.add_box, size: 18)),
+            Tab(text: Lang.t('ec_hist'), icon: Icon(Icons.history, size: 18)),
           ],
         ),
       ),

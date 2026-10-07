@@ -13,6 +13,7 @@ import '../db_helper.dart';
 import 'purchase_screen.dart';
 import 'purchase_history_screen.dart';
 import 'expiry_claim_screen.dart';
+import '../services/lang_service.dart';
 
 class SuppliersScreen extends StatefulWidget {
   const SuppliersScreen({super.key});
@@ -44,28 +45,28 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
   // --- 📞 NEW: CALL FUNCTION ---
   Future<void> _makePhoneCall(String? mobile) async {
     if (mobile == null || mobile.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No mobile number found")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('su_nomob'))));
       return;
     }
     final Uri launchUri = Uri(scheme: 'tel', path: mobile);
     if (await canLaunchUrl(launchUri)) {
       await launchUrl(launchUri);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Could not launch dialer")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('su_nodial'))));
     }
   }
 
   // --- 💬 NEW: SMS FUNCTION ---
   Future<void> _sendSms(String? mobile) async {
     if (mobile == null || mobile.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No mobile number found")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('su_nomob'))));
       return;
     }
     final Uri launchUri = Uri(scheme: 'sms', path: mobile);
     if (await canLaunchUrl(launchUri)) {
       await launchUrl(launchUri);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Could not launch SMS")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('su_nosms'))));
     }
   }
 
@@ -78,19 +79,19 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(supplier == null ? "Add Supplier" : "Edit Supplier"),
+        title: Text(supplier == null ? Lang.t('su_add') : Lang.t('su_edit')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Supplier Name", border: OutlineInputBorder(), prefixIcon: Icon(Icons.person))),
+            TextField(controller: nameCtrl, decoration: InputDecoration(labelText: Lang.t('su_name'), border: OutlineInputBorder(), prefixIcon: Icon(Icons.person))),
             const SizedBox(height: 10),
-            TextField(controller: companyCtrl, decoration: const InputDecoration(labelText: "Company / Agency", border: OutlineInputBorder(), prefixIcon: Icon(Icons.business))),
+            TextField(controller: companyCtrl, decoration: InputDecoration(labelText: Lang.t('su_company'), border: OutlineInputBorder(), prefixIcon: Icon(Icons.business))),
             const SizedBox(height: 10),
-            TextField(controller: mobileCtrl, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Mobile", border: OutlineInputBorder(), prefixIcon: Icon(Icons.phone))),
+            TextField(controller: mobileCtrl, keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: Lang.t('su_mobile'), border: OutlineInputBorder(), prefixIcon: Icon(Icons.phone))),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(Lang.t('cancel'))),
           ElevatedButton(
             onPressed: () async {
               if (nameCtrl.text.isEmpty) return;
@@ -112,7 +113,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
               _loadSuppliers();
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
-            child: const Text("SAVE"),
+            child: Text(Lang.t('save')),
           )
         ],
       ),
@@ -128,26 +129,26 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(type == 'Purchase' ? "New Purchase Bill" : "Payment Out"),
+        title: Text(type == 'Purchase' ? Lang.t('su_bill') : Lang.t('su_pay')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-             Text(type == 'Purchase' ? "Adding Bill Amount to Payable" : "Reducing Balance (Payment Given)", style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+             Text(type == 'Purchase' ? Lang.t('su_bill_sub') : Lang.t('su_pay_sub'), style: TextStyle(fontSize: 12, color: Colors.grey[600])),
              const SizedBox(height: 15),
              TextField(
               controller: amountCtrl,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: "Amount (₹)", border: OutlineInputBorder(), prefixIcon: Icon(Icons.currency_rupee)),
+              decoration: InputDecoration(labelText: Lang.t('su_amount'), border: OutlineInputBorder(), prefixIcon: Icon(Icons.currency_rupee)),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: remarkCtrl,
-              decoration: InputDecoration(labelText: type == 'Purchase' ? "Bill No / Invoice No" : "Remark / Cheque No", border: const OutlineInputBorder()),
+              decoration: InputDecoration(labelText: type == 'Purchase' ? Lang.t('su_billno') : Lang.t('su_remark'), border: const OutlineInputBorder()),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(Lang.t('cancel'))),
           ElevatedButton(
             onPressed: () async {
               double amount = double.tryParse(amountCtrl.text) ?? 0;
@@ -172,7 +173,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
 
               Navigator.pop(ctx);
               _loadSuppliers();
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Entry Saved!"), backgroundColor: Colors.green));
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('su_saved')), backgroundColor: Colors.green));
             },
             style: ElevatedButton.styleFrom(backgroundColor: type == 'Purchase' ? Colors.red : Colors.green, foregroundColor: Colors.white),
             child: Text(type.toUpperCase()),
@@ -239,7 +240,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
 
   void _viewLedger(Map<String, dynamic> s) async {
     Navigator.push(context, MaterialPageRoute(builder: (c) => Scaffold(
-      appBar: AppBar(title: const Text("Supplier Ledger"), backgroundColor: Colors.teal, foregroundColor: Colors.white),
+      appBar: AppBar(title: Text(Lang.t('su_ledger')), backgroundColor: Colors.teal, foregroundColor: Colors.white),
       body: PdfPreview(build: (f) => _generateLedgerBytes(s))
     )));
   }
@@ -255,10 +256,10 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Supplier Management"), backgroundColor: Colors.teal, foregroundColor: Colors.white),
+      appBar: AppBar(title: Text(Lang.t('su_title')), backgroundColor: Colors.teal, foregroundColor: Colors.white),
       body: _isLoading ? const Center(child: CircularProgressIndicator()) : 
         _suppliers.isEmpty 
-        ? const Center(child: Text("No Suppliers Added"))
+        ? Center(child: Text(Lang.t('su_empty')))
         : ListView.builder(
             itemCount: _suppliers.length,
             itemBuilder: (ctx, i) {

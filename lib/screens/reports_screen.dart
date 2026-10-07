@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import '../db_helper.dart';
 import 'day_close_screen.dart';
 import 'gst_report_screen.dart';
+import '../services/lang_service.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -192,7 +193,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F2F5), // Light Grey Background
       appBar: AppBar(
-        title: const Text("Business Analytics"),
+        title: Text(Lang.t('rp_title')),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
@@ -242,7 +243,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             const SizedBox(height: 20),
 
             if (_totalSale == 0) 
-               const Padding(padding: EdgeInsets.all(40), child: Text("No Sales Data Found", style: TextStyle(color: Colors.grey)))
+               Padding(padding: EdgeInsets.all(40), child: Text(Lang.t('rp_empty'), style: TextStyle(color: Colors.grey)))
             else ...[
 
               // --- 2. HERO CARD (TOTAL SALE) ---
@@ -256,14 +257,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ),
                 child: Column(
                   children: [
-                    const Text("TOTAL REVENUE", style: TextStyle(color: Colors.white70, letterSpacing: 1, fontSize: 12)),
+                    Text(Lang.t('rp_revenue'), style: TextStyle(color: Colors.white70, letterSpacing: 1, fontSize: 12)),
                     const SizedBox(height: 5),
                     Text("₹${_totalSale.toStringAsFixed(0)}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 40)),
                     const SizedBox(height: 10),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                       decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(20)),
-                      child: Text("$_totalBills Orders Processed", style: const TextStyle(color: Colors.white, fontSize: 12)),
+                      child: Text("$_totalBills ${Lang.t('rp_orders')}", style: const TextStyle(color: Colors.white, fontSize: 12)),
                     )
                   ],
                 ),
@@ -284,7 +285,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("Est. Profit",
+                    Text(Lang.t('rp_profit'),
                         style: TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 15)),
                     Text(
@@ -302,9 +303,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
               // --- 3. CASH vs UDHAAR (Visual Split) ---
               Row(
                 children: [
-                  Expanded(child: _buildInfoCard("Cash + UPI", _totalCash, Colors.green, FontAwesomeIcons.sackDollar)),
+                  Expanded(child: _buildInfoCard(Lang.t('rp_cash'), _totalCash, Colors.green, FontAwesomeIcons.sackDollar)),
                   const SizedBox(width: 15),
-                  Expanded(child: _buildInfoCard("Udhaar Given", _totalUdhaar, Colors.red, FontAwesomeIcons.bookOpen)),
+                  Expanded(child: _buildInfoCard(Lang.t('rp_udhaar'), _totalUdhaar, Colors.red, FontAwesomeIcons.bookOpen)),
                 ],
               ),
 
@@ -317,7 +318,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Recovery Health", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(Lang.t('rp_health'), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 15),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(10),
@@ -332,8 +333,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text("${(_totalSale > 0 ? (_totalCash/_totalSale)*100 : 0).toStringAsFixed(0)}% Recovered", style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold, fontSize: 12)),
-                        Text("${(_totalSale > 0 ? (_totalUdhaar/_totalSale)*100 : 0).toStringAsFixed(0)}% Pending", style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.bold, fontSize: 12)),
+                        Text("${(_totalSale > 0 ? (_totalCash/_totalSale)*100 : 0).toStringAsFixed(0)}${Lang.t('rp_rec')}", style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold, fontSize: 12)),
+                        Text("${(_totalSale > 0 ? (_totalUdhaar/_totalSale)*100 : 0).toStringAsFixed(0)}${Lang.t('rp_pen')}", style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.bold, fontSize: 12)),
                       ],
                     )
                   ],
@@ -349,7 +350,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Daily Trend", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(Lang.t('rp_trend'), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -382,7 +383,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 child: ElevatedButton.icon(
                   onPressed: _generateReportPDF,
                   icon: const Icon(Icons.share, color: Colors.white),
-                  label: const Text("SHARE SUMMARY REPORT", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  label: Text(Lang.t('rp_share'), style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black87,
                     padding: const EdgeInsets.symmetric(vertical: 16),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../db_helper.dart';
 import 'purchase_history_screen.dart';
+import '../services/lang_service.dart';
 
 /// PURCHASE ENTRY - distributor se maal kharidna.
 /// Stock auto-increases (new batch row), supplier udhaar auto-tracks.
@@ -106,19 +107,19 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("New Supplier / Distributor"),
+        title: Text(Lang.t('pu_new_sup_title')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Name *", border: OutlineInputBorder())),
+            TextField(controller: nameCtrl, decoration: InputDecoration(labelText: Lang.t('pu_name'), border: OutlineInputBorder())),
             const SizedBox(height: 10),
-            TextField(controller: compCtrl, decoration: const InputDecoration(labelText: "Company / Agency", border: OutlineInputBorder())),
+            TextField(controller: compCtrl, decoration: InputDecoration(labelText: Lang.t('pu_company'), border: OutlineInputBorder())),
             const SizedBox(height: 10),
-            TextField(controller: mobCtrl, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Mobile", border: OutlineInputBorder())),
+            TextField(controller: mobCtrl, keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: Lang.t('pu_mobile'), border: OutlineInputBorder())),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(Lang.t('cancel'))),
           ElevatedButton(
             onPressed: () async {
               if (nameCtrl.text.trim().isEmpty) return;
@@ -138,7 +139,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
               Navigator.pop(ctx);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.brown, foregroundColor: Colors.white),
-            child: const Text("ADD"),
+            child: Text(Lang.t('add')),
           ),
         ],
       ),
@@ -175,7 +176,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(product['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
-              const Text("New batch purchase", style: TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(Lang.t('pu_new_batch'), style: TextStyle(fontSize: 12, color: Colors.grey)),
             ],
           ),
           content: SingleChildScrollView(
@@ -183,13 +184,13 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Row(children: [
-                  Expanded(child: TextField(controller: batchCtrl, decoration: const InputDecoration(labelText: "Batch *", border: OutlineInputBorder(), isDense: true))),
+                  Expanded(child: TextField(controller: batchCtrl, decoration: InputDecoration(labelText: Lang.t('pu_batch'), border: OutlineInputBorder(), isDense: true))),
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextField(
                       controller: expiryCtrl,
                       readOnly: true,
-                      decoration: const InputDecoration(labelText: "Expiry", border: OutlineInputBorder(), isDense: true, suffixIcon: Icon(Icons.calendar_month, size: 18)),
+                      decoration: InputDecoration(labelText: Lang.t('pu_exp'), border: OutlineInputBorder(), isDense: true, suffixIcon: Icon(Icons.calendar_month, size: 18)),
                       onTap: () async {
                         final d = await showDatePicker(context: context, initialDate: DateTime.now().add(const Duration(days: 730)), firstDate: DateTime(2000), lastDate: DateTime(2100));
                         if (d != null) expiryCtrl.text = DateFormat('dd/MM/yyyy').format(d);
@@ -198,16 +199,16 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                   ),
                 ]),
                 const SizedBox(height: 10),
-                TextField(controller: barcodeCtrl, decoration: const InputDecoration(labelText: "Barcode (scan/type)", border: OutlineInputBorder(), isDense: true, prefixIcon: Icon(Icons.qr_code, size: 18))),
+                TextField(controller: barcodeCtrl, decoration: InputDecoration(labelText: Lang.t('pu_barcode'), border: OutlineInputBorder(), isDense: true, prefixIcon: Icon(Icons.qr_code, size: 18))),
                 const SizedBox(height: 10),
                 Row(children: [
-                  Expanded(child: TextField(controller: qtyCtrl, keyboardType: TextInputType.number, autofocus: true, decoration: const InputDecoration(labelText: "Qty *", border: OutlineInputBorder(), isDense: true))),
+                  Expanded(child: TextField(controller: qtyCtrl, keyboardType: TextInputType.number, autofocus: true, decoration: InputDecoration(labelText: Lang.t('pu_qty'), border: OutlineInputBorder(), isDense: true))),
                   const SizedBox(width: 8),
-                  Expanded(child: TextField(controller: freeCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Free", border: OutlineInputBorder(), isDense: true))),
+                  Expanded(child: TextField(controller: freeCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: Lang.t('pu_free'), border: OutlineInputBorder(), isDense: true))),
                 ]),
                 const SizedBox(height: 10),
                 Row(children: [
-                  Expanded(child: TextField(controller: rateCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: "Pur. Rate", border: OutlineInputBorder(), isDense: true, prefixText: "₹"))),
+                  Expanded(child: TextField(controller: rateCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: Lang.t('pu_rate'), border: OutlineInputBorder(), isDense: true, prefixText: "₹"))),
                   const SizedBox(width: 8),
                   Expanded(child: TextField(controller: mrpCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: "MRP", border: OutlineInputBorder(), isDense: true, prefixText: "₹"))),
                 ]),
@@ -222,7 +223,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(Lang.t('cancel'))),
             ElevatedButton(
               onPressed: () {
                 int qty = int.tryParse(qtyCtrl.text) ?? 0;
@@ -230,7 +231,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                 double rate = double.tryParse(rateCtrl.text) ?? 0.0;
                 double mrp = double.tryParse(mrpCtrl.text) ?? 0.0;
                 if (qty <= 0 || rate <= 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Qty aur Rate zaroori hai!"), backgroundColor: Colors.red));
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('pu_qty_rate')), backgroundColor: Colors.red));
                   return;
                 }
                 if (mrp <= 0) mrp = rate;
@@ -256,7 +257,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                 setState(() {});
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.brown, foregroundColor: Colors.white),
-              child: const Text("ADD"),
+              child: Text(Lang.t('add')),
             ),
           ],
         ),
@@ -280,21 +281,21 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text("New Medicine Purchase", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+          title: Text(Lang.t('pu_new_med'), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Medicine Name *", border: OutlineInputBorder(), isDense: true)),
+                TextField(controller: nameCtrl, decoration: InputDecoration(labelText: Lang.t('pu_med_name'), border: OutlineInputBorder(), isDense: true)),
                 const SizedBox(height: 10),
                 Row(children: [
-                  Expanded(child: TextField(controller: batchCtrl, decoration: const InputDecoration(labelText: "Batch", border: OutlineInputBorder(), isDense: true))),
+                  Expanded(child: TextField(controller: batchCtrl, decoration: InputDecoration(labelText: Lang.t('pu_batch'), border: OutlineInputBorder(), isDense: true))),
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextField(
                       controller: expiryCtrl,
                       readOnly: true,
-                      decoration: const InputDecoration(labelText: "Expiry", border: OutlineInputBorder(), isDense: true),
+                      decoration: InputDecoration(labelText: Lang.t('pu_exp'), border: OutlineInputBorder(), isDense: true),
                       onTap: () async {
                         final d = await showDatePicker(context: context, initialDate: DateTime.now().add(const Duration(days: 730)), firstDate: DateTime(2000), lastDate: DateTime(2100));
                         if (d != null) expiryCtrl.text = DateFormat('dd/MM/yyyy').format(d);
@@ -304,15 +305,15 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                 ]),
                 const SizedBox(height: 10),
                 Row(children: [
-                  Expanded(child: TextField(controller: qtyCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Qty *", border: OutlineInputBorder(), isDense: true))),
+                  Expanded(child: TextField(controller: qtyCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: Lang.t('pu_qty'), border: OutlineInputBorder(), isDense: true))),
                   const SizedBox(width: 8),
-                  Expanded(child: TextField(controller: freeCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Free", border: OutlineInputBorder(), isDense: true))),
+                  Expanded(child: TextField(controller: freeCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: Lang.t('pu_free'), border: OutlineInputBorder(), isDense: true))),
                 ]),
                 const SizedBox(height: 10),
-                TextField(controller: barcodeCtrl, decoration: const InputDecoration(labelText: "Barcode (scan/type)", border: OutlineInputBorder(), isDense: true, prefixIcon: Icon(Icons.qr_code, size: 18))),
+                TextField(controller: barcodeCtrl, decoration: InputDecoration(labelText: Lang.t('pu_barcode'), border: OutlineInputBorder(), isDense: true, prefixIcon: Icon(Icons.qr_code, size: 18))),
                 const SizedBox(height: 10),
                 Row(children: [
-                  Expanded(child: TextField(controller: rateCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: "Pur. Rate *", border: OutlineInputBorder(), isDense: true, prefixText: "₹"))),
+                  Expanded(child: TextField(controller: rateCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: Lang.t('pu_rate_req'), border: OutlineInputBorder(), isDense: true, prefixText: "₹"))),
                   const SizedBox(width: 8),
                   Expanded(child: TextField(controller: mrpCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: "MRP", border: OutlineInputBorder(), isDense: true, prefixText: "₹"))),
                 ]),
@@ -327,7 +328,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(Lang.t('cancel'))),
             ElevatedButton(
               onPressed: () {
                 int qty = int.tryParse(qtyCtrl.text) ?? 0;
@@ -335,7 +336,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                 double rate = double.tryParse(rateCtrl.text) ?? 0.0;
                 double mrp = double.tryParse(mrpCtrl.text) ?? 0.0;
                 if (nameCtrl.text.trim().isEmpty || qty <= 0 || rate <= 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Name, Qty aur Rate zaroori hai!"), backgroundColor: Colors.red));
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('pu_name_qty')), backgroundColor: Colors.red));
                   return;
                 }
                 if (mrp <= 0) mrp = rate;
@@ -361,7 +362,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                 setState(() {});
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.brown, foregroundColor: Colors.white),
-              child: const Text("ADD"),
+              child: Text(Lang.t('add')),
             ),
           ],
         ),
@@ -388,11 +389,11 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   // ---------- SAVE ----------
   Future<void> _savePurchase() async {
     if (_selectedSupplierId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pehle Supplier select karo!"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('pu_sup_req')), backgroundColor: Colors.red));
       return;
     }
     if (_cart.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Koi item add nahi kiya!")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('pu_empty'))));
       return;
     }
     setState(() => _isSaving = true);
@@ -453,8 +454,8 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Purchase Entry", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            Text("No: $_purchaseNo", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal)),
+            Text(Lang.t('pu_title'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text("${Lang.t('pu_no')}: $_purchaseNo", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal)),
           ],
         ),
         backgroundColor: Colors.brown,
@@ -462,7 +463,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.history),
-            tooltip: "Purchase History",
+            tooltip: Lang.t('pu_hist'),
             onPressed: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const PurchaseHistoryScreen())),
           ),
@@ -497,7 +498,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                         flex: 3,
                         child: DropdownButtonFormField<int>(
                           value: _selectedSupplierId,
-                          hint: const Text("Select Supplier *"),
+                          hint: Text(Lang.t('pu_supplier')),
                           isDense: true,
                           decoration: InputDecoration(
                             prefixIcon: const Icon(Icons.local_shipping, size: 18, color: Colors.brown),
@@ -514,7 +515,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.person_add, color: Colors.brown),
-                        tooltip: "New Supplier",
+                        tooltip: Lang.t('pu_new_sup'),
                         onPressed: _quickAddSupplier,
                       ),
                       Expanded(
@@ -522,7 +523,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                         child: TextField(
                           controller: _invoiceCtrl,
                           decoration: InputDecoration(
-                            hintText: "Dist. Bill No",
+                            hintText: Lang.t('pu_bill_no'),
                             isDense: true,
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                           ),
@@ -541,7 +542,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                           controller: _searchCtrl,
                           onChanged: (_) => setState(() {}),
                           decoration: InputDecoration(
-                            hintText: "🔍 Search medicine to purchase...",
+                            hintText: Lang.t('pu_search'),
                             prefixIcon: const Icon(Icons.search, color: Colors.brown),
                             filled: true,
                             fillColor: Colors.white,
@@ -553,7 +554,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                       ElevatedButton.icon(
                         onPressed: _showNewMedicineDialog,
                         icon: const Icon(Icons.add, size: 18),
-                        label: const Text("New"),
+                        label: Text(Lang.t('pu_new')),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.brown, foregroundColor: Colors.white),
                       ),
                     ],
@@ -567,11 +568,11 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Text("Medicine nahi mili", style: TextStyle(color: Colors.grey)),
+                              Text(Lang.t('pu_not_found'), style: TextStyle(color: Colors.grey)),
                               TextButton.icon(
                                 onPressed: _showNewMedicineDialog,
                                 icon: const Icon(Icons.add),
-                                label: const Text("Nayi dawai add karo"),
+                                label: Text(Lang.t('pu_add_new')),
                               ),
                             ],
                           ),
@@ -591,7 +592,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                                   child: const Icon(Icons.medication, color: Colors.brown, size: 20),
                                 ),
                                 title: Text(p['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                                subtitle: Text("Rate ₹${(p['rate'] as double).toStringAsFixed(1)} • MRP ₹${(p['mrp'] as double).toStringAsFixed(1)}",
+                                subtitle: Text("${Lang.t('pu_rate_lbl')} ₹${(p['rate'] as double).toStringAsFixed(1)} • MRP ₹${(p['mrp'] as double).toStringAsFixed(1)}",
                                     style: const TextStyle(fontSize: 11)),
                                 trailing: Container(
                                   padding: const EdgeInsets.all(8),
@@ -621,10 +622,10 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text("Items (${_cart.length})", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                Text("${Lang.t('pu_items')} (${_cart.length})", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                                 TextButton(
                                   onPressed: () => setState(() => _cart.clear()),
-                                  child: const Text("Clear", style: TextStyle(color: Colors.red, fontSize: 12)),
+                                  child: Text(Lang.t('pu_clear'), style: TextStyle(color: Colors.red, fontSize: 12)),
                                 ),
                               ],
                             ),
@@ -686,7 +687,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                               controller: _discountCtrl,
                               keyboardType: const TextInputType.numberWithOptions(decimal: true),
                               decoration: InputDecoration(
-                                labelText: "Disc ₹",
+                                labelText: Lang.t('pu_disc'),
                                 isDense: true,
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                               ),
@@ -699,7 +700,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                               controller: _paidCtrl,
                               keyboardType: const TextInputType.numberWithOptions(decimal: true),
                               decoration: InputDecoration(
-                                labelText: "Paid Now ₹",
+                                labelText: Lang.t('pu_paid'),
                                 isDense: true,
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                               ),
@@ -710,9 +711,9 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                           DropdownButton<String>(
                             value: _payMode,
                             items: const [
-                              DropdownMenuItem(value: 'Cash', child: Text("Cash")),
-                              DropdownMenuItem(value: 'UPI', child: Text("UPI")),
-                              DropdownMenuItem(value: 'Cheque', child: Text("Cheque")),
+                              DropdownMenuItem(value: 'Cash', child: Text(Lang.t('cash'))),
+                              DropdownMenuItem(value: 'UPI', child: Text(Lang.t('upi'))),
+                              DropdownMenuItem(value: 'Cheque', child: Text(Lang.t('pu_cheque'))),
                             ],
                             onChanged: (v) => setState(() => _payMode = v ?? 'Cash'),
                           ),
@@ -722,9 +723,9 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text("Gross ₹${c['gross']!.toStringAsFixed(0)} • GST ₹${c['gst']!.toStringAsFixed(0)}",
+                          Text("${Lang.t('pu_gross')} ₹${c['gross']!.toStringAsFixed(0)} • GST ₹${c['gst']!.toStringAsFixed(0)}",
                               style: TextStyle(fontSize: 12, color: Colors.grey[700])),
-                          Text(due > 0 ? "Udhaar ₹${due.toStringAsFixed(0)}" : "Full Paid ✓",
+                          Text(due > 0 ? "${Lang.t('udhaar')} ₹${due.toStringAsFixed(0)}" : Lang.t('pu_fullpaid'),
                               style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: due > 0 ? Colors.red : Colors.green)),
                         ],
                       ),
@@ -734,7 +735,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text("Net Payable", style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                              Text(Lang.t('pu_net'), style: TextStyle(fontSize: 11, color: Colors.grey[600])),
                               Text("₹${c['net']!.toStringAsFixed(0)}",
                                   style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.brown)),
                             ],
@@ -746,7 +747,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                               icon: _isSaving
                                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                                   : const Icon(Icons.save, color: Colors.white),
-                              label: const Text("SAVE PURCHASE", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              label: Text(Lang.t('pu_save'), style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.brown,
                                 padding: const EdgeInsets.symmetric(vertical: 14),

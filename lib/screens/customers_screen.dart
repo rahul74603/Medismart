@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import '../db_helper.dart';
 import '../services/whatsapp_helper.dart';
 import 'prescription_screen.dart';
+import '../services/lang_service.dart';
 
 class CustomersScreen extends StatefulWidget {
   const CustomersScreen({super.key});
@@ -63,11 +64,11 @@ class _CustomersScreenState extends State<CustomersScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text("Payment: ${customer['name']}"),
+        title: Text("${Lang.t('cu_pay')}: ${customer['name']}"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text("Current Balance: ₹${customer['total_due'].toStringAsFixed(2)}", 
+            Text("${Lang.t('cu_bal')}: ₹${customer['total_due'].toStringAsFixed(2)}", 
               style: TextStyle(
                 fontWeight: FontWeight.bold, 
                 color: customer['total_due'] > 0 ? Colors.red : Colors.green
@@ -77,17 +78,17 @@ class _CustomersScreenState extends State<CustomersScreen> {
             TextField(
               controller: amountCtrl,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: "Enter Amount (₹)", border: OutlineInputBorder(), prefixIcon: Icon(Icons.currency_rupee)),
+              decoration: InputDecoration(labelText: Lang.t('cu_amount'), border: OutlineInputBorder(), prefixIcon: Icon(Icons.currency_rupee)),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: remarkCtrl,
-              decoration: const InputDecoration(labelText: "Remark (Optional)", border: OutlineInputBorder()),
+              decoration: InputDecoration(labelText: Lang.t('cu_remark'), border: OutlineInputBorder()),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(Lang.t('cancel'))),
           ElevatedButton(
             onPressed: () async {
               double amount = double.tryParse(amountCtrl.text) ?? 0;
@@ -107,10 +108,10 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
               Navigator.pop(ctx);
               _loadCustomers();
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Payment Updated!"), backgroundColor: Colors.green));
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('cu_updated')), backgroundColor: Colors.green));
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
-            child: const Text("RECEIVE"),
+            child: Text(Lang.t('cu_receive')),
           )
         ],
       ),
@@ -242,7 +243,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
   void _viewLedger(Map<String, dynamic> customer) async {
     Navigator.push(context, MaterialPageRoute(
       builder: (ctx) => Scaffold(
-        appBar: AppBar(title: Text("${customer['name']} Ledger"), backgroundColor: Colors.teal, foregroundColor: Colors.white),
+        appBar: AppBar(title: Text("${customer['name']} ${Lang.t('cu_ledger')}"), backgroundColor: Colors.teal, foregroundColor: Colors.white),
         body: PdfPreview(
           build: (format) => _generateLedgerBytes(customer),
         ),
@@ -262,7 +263,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Customer Management"), backgroundColor: Colors.teal, foregroundColor: Colors.white),
+      appBar: AppBar(title: Text(Lang.t('cu_title')), backgroundColor: Colors.teal, foregroundColor: Colors.white),
       body: Column(
         children: [
           Padding(
@@ -271,7 +272,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
               controller: _searchCtrl,
               onChanged: _runFilter,
               decoration: const InputDecoration(
-                hintText: "Search Name or Mobile...",
+                hintText: Lang.t('cu_search'),
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(),
                 filled: true, fillColor: Colors.white
@@ -282,14 +283,14 @@ class _CustomersScreenState extends State<CustomersScreen> {
             child: _isLoading 
               ? const Center(child: CircularProgressIndicator()) 
               : _filteredCustomers.isEmpty 
-                ? const Center(child: Text("No Customers Found")) 
+                ? Center(child: Text(Lang.t('cu_empty'))) 
                 : ListView.builder(
                     itemCount: _filteredCustomers.length,
                     itemBuilder: (ctx, i) {
                       final cust = _filteredCustomers[i];
                       double due = (cust['total_due'] as num).toDouble();
                       Color statusColor = due > 0 ? Colors.red : (due < 0 ? Colors.green : Colors.grey);
-                      String statusText = due > 0 ? "Due: ₹${due.toStringAsFixed(2)}" : (due < 0 ? "Adv: ₹${(-due).toStringAsFixed(2)}" : "Settled");
+                      String statusText = due > 0 ? "${Lang.t('cu_due')}: ₹${due.toStringAsFixed(2)}" : (due < 0 ? "${Lang.t('cu_adv')}: ₹${(-due).toStringAsFixed(2)}" : Lang.t('cu_settled'));
 
                       return Card(
                         margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -316,12 +317,12 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                   if (val == 'rx') Navigator.push(context, MaterialPageRoute(builder: (_) => PrescriptionScreen(mobile: (cust['mobile'] ?? '').toString(), customerName: (cust['name'] ?? '').toString())));
                                 },
                                 itemBuilder: (context) => [
-                                  const PopupMenuItem(value: 'pay', child: Row(children: [Icon(Icons.payment, color: Colors.green), SizedBox(width: 10), Text("Receive Payment")])),
-                                  const PopupMenuItem(value: 'view', child: Row(children: [Icon(Icons.visibility, color: Colors.blue), SizedBox(width: 10), Text("View Ledger")])),
-                                  const PopupMenuItem(value: 'share', child: Row(children: [Icon(Icons.share, color: Colors.orange), SizedBox(width: 10), Text("Share Ledger")])),
-                                  const PopupMenuItem(value: 'rx', child: Row(children: [Icon(Icons.medical_services, color: Colors.purple), SizedBox(width: 10), Text("Prescriptions")])),
+                                  PopupMenuItem(value: 'pay', child: Row(children: [Icon(Icons.payment, color: Colors.green), SizedBox(width: 10), Text(Lang.t('cu_menu_pay'))])),
+                                  PopupMenuItem(value: 'view', child: Row(children: [Icon(Icons.visibility, color: Colors.blue), SizedBox(width: 10), Text(Lang.t('cu_menu_view'))])),
+                                  PopupMenuItem(value: 'share', child: Row(children: [Icon(Icons.share, color: Colors.orange), SizedBox(width: 10), Text(Lang.t('cu_menu_share'))])),
+                                  PopupMenuItem(value: 'rx', child: Row(children: [Icon(Icons.medical_services, color: Colors.purple), SizedBox(width: 10), Text(Lang.t('cu_menu_rx'))])),
                                   if (due > 0)
-                                    const PopupMenuItem(value: 'remind', child: Row(children: [Icon(Icons.chat, color: Colors.green), SizedBox(width: 10), Text("WhatsApp Reminder")])),
+                                    PopupMenuItem(value: 'remind', child: Row(children: [Icon(Icons.chat, color: Colors.green), SizedBox(width: 10), Text(Lang.t('cu_menu_remind'))])),
                                 ]
                               )
                             ],

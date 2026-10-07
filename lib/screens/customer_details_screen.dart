@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import '../db_helper.dart';
 import '../pdf_helper.dart';
 import 'view_ledger_screen.dart'; // <--- NEW IMPORT
+import '../services/lang_service.dart';
 
 class CustomerDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> customer;
@@ -44,17 +45,17 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Receive Payment"),
+        title: Text(Lang.t('cu_menu_pay')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: amtCtrl, keyboardType: TextInputType.number, autofocus: true, decoration: const InputDecoration(labelText: "Amount Received (₹)", border: OutlineInputBorder(), prefixIcon: Icon(Icons.currency_rupee))),
+            TextField(controller: amtCtrl, keyboardType: TextInputType.number, autofocus: true, decoration: InputDecoration(labelText: Lang.t('cd_amount'), border: OutlineInputBorder(), prefixIcon: Icon(Icons.currency_rupee))),
             const SizedBox(height: 10),
-            TextField(controller: remarkCtrl, decoration: const InputDecoration(labelText: "Remarks", border: OutlineInputBorder())),
+            TextField(controller: remarkCtrl, decoration: InputDecoration(labelText: Lang.t('cd_remarks'), border: OutlineInputBorder())),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(Lang.t('cancel'))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
             onPressed: () async {
@@ -63,10 +64,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                 await DBHelper.addPayment(widget.customer['mobile'], amt, remarkCtrl.text);
                 Navigator.pop(ctx);
                 _loadLedger(); 
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Payment Received!"), backgroundColor: Colors.green));
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('cd_received')), backgroundColor: Colors.green));
               }
             },
-            child: const Text("RECEIVE"),
+            child: Text(Lang.t('cu_receive')),
           )
         ],
       ),
@@ -76,7 +77,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   // --- 2. GENERATE PDF & SHARE (UPDATED) ---
   void _shareLedger() async {
     if (_ledger.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No transactions to show!")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('cd_notx'))));
       return;
     }
 
@@ -89,13 +90,13 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("Account Statement Options", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            Text(Lang.t('cd_stmt'), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 20),
 
             // 1. VIEW PDF (IN-APP) - NEW UPDATE
             ListTile(
               leading: const Icon(Icons.remove_red_eye, color: Colors.blue),
-              title: const Text("View Statement (In-App)"),
+              title: Text(Lang.t('cd_view')),
               onTap: () {
                 Navigator.pop(ctx); // Close Menu
                 // Open Viewer
@@ -111,7 +112,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
             // 2. SHARE PDF (WHATSAPP)
             ListTile(
               leading: const Icon(FontAwesomeIcons.whatsapp, color: Colors.green),
-              title: const Text("Share on WhatsApp"),
+              title: Text(Lang.t('cd_wa')),
               onTap: () async { 
                 Navigator.pop(ctx); 
                 // Share ke liye file generate karni padegi

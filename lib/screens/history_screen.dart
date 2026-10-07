@@ -10,6 +10,7 @@ import 'retail_billing_screen.dart';
 import 'sales_return_screen.dart';
 import 'view_bill_screen.dart';
 import '../services/staff_mode.dart';
+import '../services/lang_service.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -52,11 +53,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     bool confirm = await showDialog(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text("Delete Bill?"),
-        content: const Text("Stock will be restored."),
+        title: Text(Lang.t('hs_del_title')),
+        content: Text(Lang.t('hs_del_msg')),
         actions: [
-          TextButton(onPressed: ()=>Navigator.pop(c, false), child: const Text("NO")),
-          TextButton(onPressed: ()=>Navigator.pop(c, true), child: const Text("YES", style: TextStyle(color: Colors.red)))
+          TextButton(onPressed: ()=>Navigator.pop(c, false), child: Text(Lang.t('no'))),
+          TextButton(onPressed: ()=>Navigator.pop(c, true), child: Text(Lang.t('yes'), style: TextStyle(color: Colors.red)))
         ]
       )
     ) ?? false;
@@ -138,13 +139,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Bill History"),
+        title: Text(Lang.t('hs_title')),
         backgroundColor: Colors.blue[800],
         foregroundColor: Colors.white,
         actions: [
           if (!StaffMode.enabled) IconButton(
             icon: const Icon(Icons.assignment_return),
-            tooltip: "Sales Returns",
+            tooltip: Lang.t('hs_returns'),
             onPressed: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => const ReturnsHistoryScreen())),
           ),
@@ -153,7 +154,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       body: _isLoading
         ? const Center(child: CircularProgressIndicator())
         : _bills.isEmpty
-          ? const Center(child: Text("No Bills Found"))
+          ? Center(child: Text(Lang.t('hs_empty')))
           : ListView.builder(
               padding: const EdgeInsets.all(10),
               itemCount: _bills.length,
@@ -185,16 +186,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             if (val == 'delete') _deleteBill(bill);
                           },
                           itemBuilder: (context) => [
-                            const PopupMenuItem(value: 'view', child: Row(children: [Icon(Icons.visibility, color: Colors.teal, size: 20), SizedBox(width: 10), Text("View Bill")])),
-                            const PopupMenuItem(value: 'receipt', child: Row(children: [Icon(Icons.receipt_long, color: Colors.brown, size: 20), SizedBox(width: 10), Text("Thermal Receipt")])),
+                            PopupMenuItem(value: 'view', child: Row(children: [Icon(Icons.visibility, color: Colors.teal, size: 20), SizedBox(width: 10), Text(Lang.t('hs_view'))])),
+                            PopupMenuItem(value: 'receipt', child: Row(children: [Icon(Icons.receipt_long, color: Colors.brown, size: 20), SizedBox(width: 10), Text(Lang.t('hs_receipt'))])),
                             if (!StaffMode.enabled)
-                              const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, color: Colors.blue, size: 20), SizedBox(width: 10), Text("Edit Bill")])),
+                              PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, color: Colors.blue, size: 20), SizedBox(width: 10), Text(Lang.t('hs_edit'))])),
                             if (!StaffMode.enabled)
-                              const PopupMenuItem(value: 'return', child: Row(children: [Icon(Icons.assignment_return, color: Colors.deepPurple, size: 20), SizedBox(width: 10), Text("Sales Return")])),
-                            const PopupMenuItem(value: 'share', child: Row(children: [Icon(Icons.share, color: Colors.deepOrange, size: 20), SizedBox(width: 10), Text("Share PDF")])),
-                            const PopupMenuItem(value: 'whatsapp', child: Row(children: [Icon(Icons.chat, color: Colors.green, size: 20), SizedBox(width: 10), Text("WhatsApp Bill")])),
+                              PopupMenuItem(value: 'return', child: Row(children: [Icon(Icons.assignment_return, color: Colors.deepPurple, size: 20), SizedBox(width: 10), Text(Lang.t('hs_return'))])),
+                            PopupMenuItem(value: 'share', child: Row(children: [Icon(Icons.share, color: Colors.deepOrange, size: 20), SizedBox(width: 10), Text(Lang.t('hs_share'))])),
+                            PopupMenuItem(value: 'whatsapp', child: Row(children: [Icon(Icons.chat, color: Colors.green, size: 20), SizedBox(width: 10), Text(Lang.t('hs_wa'))])),
                             if (!StaffMode.enabled)
-                              const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red, size: 20), SizedBox(width: 10), Text("Delete Bill")])),
+                              PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red, size: 20), SizedBox(width: 10), Text(Lang.t('hs_delete'))])),
                           ],
                         ),
                       ]

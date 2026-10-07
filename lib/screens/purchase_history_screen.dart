@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../db_helper.dart';
+import '../services/lang_service.dart';
 
 /// Purchase history - all purchases or filtered by supplier.
 class PurchaseHistoryScreen extends StatefulWidget {
@@ -75,14 +76,14 @@ class _PurchaseHistoryScreenState extends State<PurchaseHistoryScreen> {
     bool confirm = await showDialog(
           context: context,
           builder: (c) => AlertDialog(
-            title: const Text("Delete Purchase?"),
+            title: Text(Lang.t('ph_del')),
             content: Text(
                 "${p['purchase_no']} delete hoga, stock kam hoga aur supplier udhaar adjust hoga.\n\nNote: jo maal bik chuka hai, woh purchase delete nahi hogi."),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("NO")),
+              TextButton(onPressed: () => Navigator.pop(c, false), child: Text(Lang.t('no'))),
               TextButton(
                   onPressed: () => Navigator.pop(c, true),
-                  child: const Text("YES", style: TextStyle(color: Colors.red))),
+                  child: Text(Lang.t('yes'), style: TextStyle(color: Colors.red))),
             ],
           ),
         ) ??
@@ -105,8 +106,8 @@ class _PurchaseHistoryScreenState extends State<PurchaseHistoryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.supplierName != null
-            ? "Bills: ${widget.supplierName}"
-            : "Purchase History"),
+            ? "${Lang.t('ph_bills')}: ${widget.supplierName}"
+            : Lang.t('ph_title')),
         backgroundColor: Colors.brown,
         foregroundColor: Colors.white,
       ),

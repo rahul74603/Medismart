@@ -6,6 +6,7 @@ import '../db_helper.dart';
 import 'supplier_order_screen.dart';
 import 'expiry_claim_screen.dart';
 import '../services/staff_mode.dart';
+import '../services/lang_service.dart';
 
 class AlertsScreen extends StatefulWidget {
   final String alertType; // 'STOCK' or 'EXPIRY'
@@ -69,7 +70,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
   Map<String, dynamic> _getStatus(Map<String, dynamic> item) {
     // 1. LOW STOCK -> PURE GREEN 🟢
     if (widget.alertType == 'STOCK') {
-      return {'color': Colors.green, 'text': 'Low Stock'};
+      return {'color': Colors.green, 'text': Lang.t('al_low')};
     }
     
     // 2. EXPIRY LOGIC
@@ -79,20 +80,20 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
       if (expiry.isBefore(now)) {
         // ALREADY EXPIRED -> RED 🔴
-        return {'color': Colors.red, 'text': 'EXPIRED'};
+        return {'color': Colors.red, 'text': Lang.t('al_expired')};
       } else {
         // EXPIRING SOON -> YELLOW/AMBER 🟡
-        return {'color': Colors.amber.shade700, 'text': 'Expiring Soon'};
+        return {'color': Colors.amber.shade700, 'text': Lang.t('al_soon')};
       }
     } catch (e) {
-      return {'color': Colors.grey, 'text': 'Invalid'};
+      return {'color': Colors.grey, 'text': Lang.t('al_invalid')};
     }
   }
 
   @override
   Widget build(BuildContext context) {
     // HEADER COLOR: Stock = Green, Expiry = Red
-    String title = widget.alertType == 'STOCK' ? "Low Stock Alerts" : "Expiry Alerts";
+    String title = widget.alertType == 'STOCK' ? Lang.t('al_stock') : Lang.t('al_exp');
     Color themeColor = widget.alertType == 'STOCK' ? Colors.green : Colors.red;
 
     return Scaffold(
@@ -126,8 +127,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
                   color: Colors.white),
               label: Text(
                   widget.alertType == 'STOCK'
-                      ? "Order on WhatsApp"
-                      : "Claim Manager",
+                      ? Lang.t('al_order')
+                      : Lang.t('al_claim'),
                   style: const TextStyle(
                       color: Colors.white, fontWeight: FontWeight.bold)),
             )
@@ -141,7 +142,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                     children: [
                       Icon(Icons.check_circle_outline, size: 80, color: Colors.grey.shade300),
                       const SizedBox(height: 10),
-                      Text("No alerts found!", style: GoogleFonts.poppins(color: Colors.grey, fontSize: 16)),
+                      Text(Lang.t('al_empty'), style: GoogleFonts.poppins(color: Colors.grey, fontSize: 16)),
                     ],
                   ),
                 )
@@ -200,7 +201,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                       runSpacing: 4, // Vertical space if wrapped
                                       children: [
                                         _infoBadge(Icons.calendar_today, item['expiryDate']),
-                                        _infoBadge(Icons.shelves, "Rack: ${item['rack']}"),
+                                        _infoBadge(Icons.shelves, "${Lang.t('al_rack')}: ${item['rack']}"),
                                       ],
                                     ),
                                   ],

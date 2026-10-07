@@ -388,7 +388,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("Same salt, saste options:",
+                      Text(Lang.t('w_salt'),
                           style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 12,

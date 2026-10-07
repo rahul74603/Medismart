@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../db_helper.dart';
 import '../services/whatsapp_helper.dart';
+import '../services/lang_service.dart';
 
 /// SUPPLIER ORDER - low stock products select karo, qty set karo,
 /// supplier ko WhatsApp pe order bhejo. 1-tap reorder!
@@ -82,13 +83,13 @@ class _SupplierOrderScreenState extends State<SupplierOrderScreen> {
   Future<void> _sendOrder() async {
     if (_selectedSupplierId == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Pehle Supplier select karo!"),
+          content: Text(Lang.t('pu_sup_req')),
           backgroundColor: Colors.red));
       return;
     }
     if (_checked.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Koi product select nahi kiya!")));
+          SnackBar(content: Text(Lang.t('so_noprod'))));
       return;
     }
     Map<String, dynamic>? supplier;
@@ -106,7 +107,7 @@ class _SupplierOrderScreenState extends State<SupplierOrderScreen> {
         .toList();
     if (lines.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Order qty 0 hai!"), backgroundColor: Colors.red));
+          content: Text(Lang.t('so_qty0')), backgroundColor: Colors.red));
       return;
     }
     await WhatsAppHelper.sendSupplierOrder(context, supplier, lines);
@@ -117,7 +118,7 @@ class _SupplierOrderScreenState extends State<SupplierOrderScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5F8),
       appBar: AppBar(
-        title: const Text("Order to Supplier"),
+        title: Text(Lang.t('so_title')),
         backgroundColor: Colors.green.shade700,
         foregroundColor: Colors.white,
       ),
@@ -132,7 +133,7 @@ class _SupplierOrderScreenState extends State<SupplierOrderScreen> {
                     children: [
                       DropdownButtonFormField<int>(
                         value: _selectedSupplierId,
-                        hint: const Text("Select Supplier *"),
+                        hint: Text(Lang.t('pu_supplier')),
                         isDense: true,
                         decoration: InputDecoration(
                           prefixIcon: const Icon(Icons.local_shipping,
@@ -158,7 +159,7 @@ class _SupplierOrderScreenState extends State<SupplierOrderScreen> {
                           dense: true,
                           contentPadding: EdgeInsets.zero,
                           title: Text(
-                              "Select All (${_products.length} low-stock items)",
+                              "${Lang.t('so_all')} (${_products.length} ${Lang.t('so_lowitems')})",
                               style: const TextStyle(
                                   fontWeight: FontWeight.bold, fontSize: 13)),
                           onChanged: _toggleAll,
@@ -170,7 +171,7 @@ class _SupplierOrderScreenState extends State<SupplierOrderScreen> {
                   child: _products.isEmpty
                       ? const Center(
                           child: Text(
-                              "Sab stock full hai! Koi order zaroori nahi 🎉",
+                              Lang.t('so_full'),
                               style: TextStyle(color: Colors.grey)))
                       : ListView.builder(
                           padding: const EdgeInsets.all(12),
@@ -220,7 +221,7 @@ class _SupplierOrderScreenState extends State<SupplierOrderScreen> {
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 14)),
                                           Text(
-                                              "Stock: ${p['qty']} • Min: ${p['min_stock']}",
+                                              "${Lang.t('w_stock')}: ${p['qty']} • ${Lang.t('so_min')}: ${p['min_stock']}",
                                               style: TextStyle(
                                                   fontSize: 12,
                                                   color: Colors.grey[600])),
@@ -267,7 +268,7 @@ class _SupplierOrderScreenState extends State<SupplierOrderScreen> {
                         icon: const Icon(Icons.send,
                             color: Colors.white, size: 20),
                         label: Text(
-                            "SEND ORDER ON WHATSAPP (${_checked.length})",
+                            "${Lang.t('so_send')} (${_checked.length})",
                             style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold)),

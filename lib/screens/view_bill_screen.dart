@@ -5,6 +5,7 @@ import 'package:printing/printing.dart';
 import '../pdf_helper.dart';
 import '../services/receipt_helper.dart';
 import '../services/whatsapp_helper.dart';
+import '../services/lang_service.dart';
 
 class ViewBillScreen extends StatefulWidget {
   final Map<String, dynamic> billData;
@@ -56,12 +57,12 @@ class _ViewBillScreenState extends State<ViewBillScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.chat),
-            tooltip: "Send Bill on WhatsApp",
+            tooltip: Lang.t('vb_wa'),
             onPressed: _whatsappBill,
           ),
           IconButton(
             icon: const Icon(Icons.receipt_long),
-            tooltip: "Thermal Receipt Print (58/80mm)",
+            tooltip: Lang.t('vb_print'),
             onPressed: _printReceipt,
           ),
         ],

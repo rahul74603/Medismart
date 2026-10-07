@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../db_helper.dart';
 import 'supplier_order_screen.dart';
 import '../services/staff_mode.dart';
+import '../services/lang_service.dart';
 
 /// STOCK MANAGEMENT - grouped by product, batches inside (FEFO ordered).
 /// One product can have multiple batches; billing auto-picks earliest expiry.
@@ -249,7 +250,7 @@ class _StockScreenState extends State<StockScreen> {
                     DropdownButtonFormField<String>(
                       value: _selectedType,
                       decoration: InputDecoration(
-                        labelText: "Type",
+                        labelText: Lang.t('st_type'),
                         prefixIcon: const Icon(Icons.category, color: Colors.deepOrange),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                         filled: true, fillColor: Colors.grey.shade50,
@@ -269,7 +270,7 @@ class _StockScreenState extends State<StockScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text("💊 Strip Calculation", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+                            Text(Lang.t('st_strip'), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange)),
                             const SizedBox(height: 8),
                             Row(
                               children: [
@@ -296,9 +297,9 @@ class _StockScreenState extends State<StockScreen> {
                     ]),
                     const SizedBox(height: 12),
                     Row(children: [
-                      Expanded(child: _buildInput(barcodeCtrl, "Barcode", "Scan/type", Icons.qr_code)),
+                      Expanded(child: _buildInput(barcodeCtrl, Lang.t('st_barcode'), Lang.t('st_scan'), Icons.qr_code)),
                       const SizedBox(width: 10),
-                      Expanded(child: _buildInput(minStockCtrl, "Min Stock", "10", Icons.warning_amber, isNum: true)),
+                      Expanded(child: _buildInput(minStockCtrl, Lang.t('st_min'), '10', Icons.warning_amber, isNum: true)),
                     ]),
                     const SizedBox(height: 12),
 
@@ -311,7 +312,7 @@ class _StockScreenState extends State<StockScreen> {
                             keyboardType: TextInputType.number,
                             onChanged: (val) => calculateWholesaleRate(),
                             decoration: InputDecoration(
-                              labelText: isStripSelected ? "MRP (Per Strip)" : "MRP (Per Unit)",
+                              labelText: isStripSelected ? Lang.t('st_mrp_strip') : Lang.t('st_mrp_unit'),
                               hintText: "100",
                               prefixIcon: const Icon(Icons.currency_rupee, color: Colors.green, size: 18),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -346,8 +347,8 @@ class _StockScreenState extends State<StockScreen> {
                       controller: wholesaleCtrl,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
-                        labelText: "Basic Rate (Excl. Tax)",
-                        hintText: "Auto Calculated",
+                        labelText: Lang.t('st_basic'),
+                        hintText: Lang.t('st_auto'),
                         prefixIcon: const Icon(Icons.calculate, color: Colors.blue, size: 18),
                         suffixText: "(Auto)",
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -359,8 +360,8 @@ class _StockScreenState extends State<StockScreen> {
                       controller: expiryCtrl,
                       readOnly: true,
                       decoration: InputDecoration(
-                        labelText: "Expiry Date",
-                        hintText: "Select Date",
+                        labelText: Lang.t('st_exp'),
+                        hintText: Lang.t('st_sel_date'),
                         prefixIcon: const Icon(Icons.calendar_month, color: Colors.deepOrange),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                         filled: true, fillColor: Colors.grey.shade50
@@ -378,11 +379,11 @@ class _StockScreenState extends State<StockScreen> {
               ),
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("CANCEL", style: TextStyle(color: Colors.grey))),
+                TextButton(onPressed: () => Navigator.pop(ctx), child: Text(Lang.t('cancel'), style: TextStyle(color: Colors.grey))),
                 ElevatedButton(
                   onPressed: () async {
                     if (nameCtrl.text.isEmpty) {
-                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Name is required!")));
+                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('st_name_req'))));
                        return;
                     }
                     try {
@@ -426,7 +427,7 @@ class _StockScreenState extends State<StockScreen> {
                       }
                       Navigator.pop(ctx);
                       _refreshItems();
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Item Saved Successfully!"), backgroundColor: Colors.green));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('st_saved')), backgroundColor: Colors.green));
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
                     }
@@ -435,7 +436,7 @@ class _StockScreenState extends State<StockScreen> {
                     backgroundColor: Colors.deepOrange, foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                  child: const Text("SAVE ITEM", style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: Text(Lang.t('st_save_item'), style: TextStyle(fontWeight: FontWeight.bold)),
                 )
               ],
             );
@@ -449,11 +450,11 @@ class _StockScreenState extends State<StockScreen> {
     bool confirm = await showDialog(
           context: context,
           builder: (c) => AlertDialog(
-            title: const Text("Delete Batch?"),
-            content: Text("$label\n\nYe batch stock se delete ho jayega. Continue?"),
+            title: Text(Lang.t('st_del')),
+            content: Text("$label\n\n${Lang.t('st_del_msg')}"),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("NO")),
-              TextButton(onPressed: () => Navigator.pop(c, true), child: const Text("YES", style: TextStyle(color: Colors.red))),
+              TextButton(onPressed: () => Navigator.pop(c, false), child: Text(Lang.t('no'))),
+              TextButton(onPressed: () => Navigator.pop(c, true), child: Text(Lang.t('yes'), style: TextStyle(color: Colors.red))),
             ],
           ),
         ) ??
@@ -485,14 +486,14 @@ class _StockScreenState extends State<StockScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5F8),
       appBar: AppBar(
-        title: Text("Stock Management", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
+        title: Text(Lang.t('st_title'), style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
         centerTitle: true,
         flexibleSpace: Container(decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFFFF6D00), Color(0xFFFF9100)], begin: Alignment.topLeft, end: Alignment.bottomRight))),
         elevation: 5, iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
             icon: const Icon(Icons.add_shopping_cart, color: Colors.white),
-            tooltip: "Order low stock on WhatsApp",
+            tooltip: Lang.t('st_order'),
             onPressed: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const SupplierOrderScreen())),
           ),
@@ -511,7 +512,7 @@ class _StockScreenState extends State<StockScreen> {
               controller: _searchCtrl,
               onChanged: _filterItems,
               decoration: InputDecoration(
-                hintText: "Search Name or Salt...",
+                hintText: Lang.t('st_search'),
                 prefixIcon: const Icon(Icons.search, color: Colors.grey),
                 suffixIcon: IconButton(icon: const Icon(Icons.clear), onPressed: () { _searchCtrl.clear(); _filterItems(''); }),
                 filled: true, fillColor: const Color(0xFFF2F5F8),
@@ -524,7 +525,7 @@ class _StockScreenState extends State<StockScreen> {
             child: _isLoading
             ? const Center(child: CircularProgressIndicator(color: Colors.deepOrange))
             : groups.isEmpty
-              ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.inventory_2_outlined, size: 80, color: Colors.grey.shade300), const Text("No Items found", style: TextStyle(color: Colors.grey))]))
+              ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.inventory_2_outlined, size: 80, color: Colors.grey.shade300), Text(Lang.t('st_empty'), style: TextStyle(color: Colors.grey))]))
               : ListView.builder(
                   padding: const EdgeInsets.all(10),
                   itemCount: groups.length,

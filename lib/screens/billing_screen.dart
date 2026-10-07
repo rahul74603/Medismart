@@ -166,7 +166,7 @@ class _BillingScreenState extends State<BillingScreen> {
         _addressCtrl.text = cust['address'] ?? '';
       });
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Customer Found!"), 
+        content: Text(Lang.t('w_found')), 
         duration: Duration(milliseconds: 800),
         backgroundColor: Colors.green,
       ));
@@ -233,7 +233,7 @@ class _BillingScreenState extends State<BillingScreen> {
             DropdownButtonFormField<int>(
               value: ((selectedBatch['id'] as num?)?.toInt()) ?? 0,
               decoration: const InputDecoration(
-                labelText: "Batch (FEFO: earliest expiry first)",
+                labelText: Lang.t('w_batch'),
                 border: OutlineInputBorder(), isDense: true),
               items: batches.map((b) {
                 return DropdownMenuItem<int>(
@@ -267,7 +267,7 @@ class _BillingScreenState extends State<BillingScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Same salt, saste options:",
+                    Text(Lang.t('w_salt'),
                         style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
@@ -320,16 +320,16 @@ class _BillingScreenState extends State<BillingScreen> {
             ],
             const SizedBox(height: 10),
             Row(children: [
-                Expanded(child: TextField(controller: qtyCtrl, keyboardType: TextInputType.number, autofocus: true, decoration: const InputDecoration(labelText: "Bill Qty", border: OutlineInputBorder()), inputFormatters: [FilteringTextInputFormatter.digitsOnly])),
+                Expanded(child: TextField(controller: qtyCtrl, keyboardType: TextInputType.number, autofocus: true, decoration: InputDecoration(labelText: Lang.t('w_qty'), border: OutlineInputBorder()), inputFormatters: [FilteringTextInputFormatter.digitsOnly])),
                 const SizedBox(width: 10),
-                Expanded(child: TextField(controller: freeQtyCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Free Qty", border: OutlineInputBorder()), inputFormatters: [FilteringTextInputFormatter.digitsOnly])),
+                Expanded(child: TextField(controller: freeQtyCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: Lang.t('w_free'), border: OutlineInputBorder()), inputFormatters: [FilteringTextInputFormatter.digitsOnly])),
             ]),
             const SizedBox(height: 10),
-            TextField(controller: rateCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: "Rate (Basic)", border: OutlineInputBorder(), prefixText: "₹")),
+            TextField(controller: rateCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: Lang.t('w_rate'), border: OutlineInputBorder(), prefixText: "₹")),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(Lang.t('cancel'))),
           ElevatedButton(
             onPressed: () {
               int qty = int.tryParse(qtyCtrl.text) ?? 0;
@@ -358,7 +358,7 @@ class _BillingScreenState extends State<BillingScreen> {
               }
               if ((remQty + remFree) > 0) {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text("Not enough stock in batches!"), backgroundColor: Colors.red));
+                    content: Text(Lang.t('w_nostock')), backgroundColor: Colors.red));
                 return;
               }
 
@@ -400,7 +400,7 @@ class _BillingScreenState extends State<BillingScreen> {
               });
               Navigator.pop(ctx);
             },
-            child: const Text("ADD"),
+            child: Text(Lang.t('add')),
           )
         ],
         ),
@@ -429,16 +429,16 @@ class _BillingScreenState extends State<BillingScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(children: [
-                Expanded(child: TextField(controller: qtyCtrl, keyboardType: TextInputType.number, autofocus: true, decoration: const InputDecoration(labelText: "Bill Qty", border: OutlineInputBorder()), inputFormatters: [FilteringTextInputFormatter.digitsOnly])),
+                Expanded(child: TextField(controller: qtyCtrl, keyboardType: TextInputType.number, autofocus: true, decoration: InputDecoration(labelText: Lang.t('w_qty'), border: OutlineInputBorder()), inputFormatters: [FilteringTextInputFormatter.digitsOnly])),
                 const SizedBox(width: 10),
-                Expanded(child: TextField(controller: freeQtyCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Free Qty", border: OutlineInputBorder()), inputFormatters: [FilteringTextInputFormatter.digitsOnly])),
+                Expanded(child: TextField(controller: freeQtyCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: Lang.t('w_free'), border: OutlineInputBorder()), inputFormatters: [FilteringTextInputFormatter.digitsOnly])),
             ]),
             const SizedBox(height: 10),
-            TextField(controller: rateCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: "Rate (Basic)", border: OutlineInputBorder(), prefixText: "₹")),
+            TextField(controller: rateCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: Lang.t('w_rate'), border: OutlineInputBorder(), prefixText: "₹")),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(Lang.t('cancel'))),
           ElevatedButton(
             onPressed: () {
               int qty = int.tryParse(qtyCtrl.text) ?? 0;
@@ -446,7 +446,7 @@ class _BillingScreenState extends State<BillingScreen> {
               double rate = double.tryParse(rateCtrl.text) ?? 0.0;
 
               if (qty <= 0) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Quantity must be > 0"), backgroundColor: Colors.red));
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('w_qty0')), backgroundColor: Colors.red));
                 return;
               }
 
@@ -458,7 +458,7 @@ class _BillingScreenState extends State<BillingScreen> {
               });
               Navigator.pop(ctx);
             },
-            child: const Text("UPDATE"),
+            child: Text(Lang.t('update')),
           )
         ],
       ),
@@ -502,7 +502,7 @@ class _BillingScreenState extends State<BillingScreen> {
   // --- PREVIEW FUNCTION ---
   void _previewBill() {
     if (_cart.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cart is empty!")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('w_empty'))));
       return;
     }
     final calc = _calculateBill();
@@ -536,7 +536,7 @@ class _BillingScreenState extends State<BillingScreen> {
   void _generateBill() async {
     if (_cart.isEmpty || _nameCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Please add customer name and items"),
+        content: Text(Lang.t('w_add')),
         backgroundColor: Colors.red,
       ));
       return;
@@ -611,7 +611,7 @@ class _BillingScreenState extends State<BillingScreen> {
       
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(_isEditMode ? "Bill Updated Successfully!" : "Bill Saved Successfully!"),
+        content: Text(_isEditMode ? Lang.t('w_updated') : Lang.t('w_saved')),
         backgroundColor: Colors.green,
       ));
       
@@ -714,7 +714,7 @@ class _BillingScreenState extends State<BillingScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(_isEditMode ? "Edit Bill" : "Wholesale Billing", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(_isEditMode ? Lang.t('w_edit') : Lang.t('w_title'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             Text("Inv: $_invoiceNo", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal)),
           ],
         ),
@@ -789,7 +789,7 @@ class _BillingScreenState extends State<BillingScreen> {
                               child: const Icon(Icons.person, color: Color(0xFFFF6F00), size: 20),
                             ),
                             const SizedBox(width: 10),
-                            const Text("Customer Details", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A))),
+                            Text(Lang.t('w_cust'), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A))),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -831,7 +831,7 @@ class _BillingScreenState extends State<BillingScreen> {
                             const SizedBox(width: 10),
                             Expanded(child: TextField(controller: _nameCtrl, 
                               decoration: InputDecoration(
-                                labelText: "Party Name", isDense: true, 
+                                labelText: Lang.t('w_party'), isDense: true, 
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 prefixIcon: const Icon(Icons.business, size: 18),
                               ),
@@ -843,7 +843,7 @@ class _BillingScreenState extends State<BillingScreen> {
                         // 🔥🔥 DOCTOR NAME FIELD 🔥🔥
                         TextField(controller: _doctorCtrl, 
                           decoration: InputDecoration(
-                            labelText: "Doctor Name", isDense: true, 
+                            labelText: Lang.t('w_doctor'), isDense: true, 
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                             prefixIcon: const Icon(Icons.local_hospital, size: 18),
                           ),
@@ -853,7 +853,7 @@ class _BillingScreenState extends State<BillingScreen> {
 
                         TextField(controller: _addressCtrl, 
                           decoration: InputDecoration(
-                            labelText: "Address", isDense: true, 
+                            labelText: Lang.t('w_address'), isDense: true, 
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                             prefixIcon: const Icon(Icons.location_on, size: 18),
                           ),
@@ -884,7 +884,7 @@ class _BillingScreenState extends State<BillingScreen> {
                       onSubmitted: (_) => _onSearchSubmit(),
                       onTap: () => setState(() => _isSearchFocused = true),
                       decoration: InputDecoration(
-                        hintText: "Search Medicine...",
+                        hintText: Lang.t('w_search'),
                         prefixIcon: const Icon(Icons.search, color: Color(0xFFFF6F00)),
                         suffixIcon: _isSearchFocused
                             ? Row(
@@ -961,7 +961,7 @@ class _BillingScreenState extends State<BillingScreen> {
                                       color: (item['quantity'] as int) > 10 ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
-                                    child: Text("Stock: ${item['quantity']}", 
+                                    child: Text("${Lang.t('w_stock')}: ${item['quantity']}", 
                                       style: TextStyle(fontSize: 11, color: (item['quantity'] as int) > 10 ? Colors.green : Colors.red)),
                                   ),
                                   const SizedBox(width: 8),
@@ -1012,7 +1012,7 @@ class _BillingScreenState extends State<BillingScreen> {
                               child: const Icon(Icons.shopping_cart, color: Colors.deepPurple, size: 20),
                             ),
                             const SizedBox(width: 10),
-                            const Text("Cart Items", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A))),
+                            Text(Lang.t('w_cart'), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A))),
                           ],
                         ),
                         Container(
@@ -1021,7 +1021,7 @@ class _BillingScreenState extends State<BillingScreen> {
                             color: const Color(0xFFFF6F00),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: Text("${_cart.length} Items", style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                          child: Text("${_cart.length} ${Lang.t('w_items')}", style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
@@ -1079,7 +1079,7 @@ class _BillingScreenState extends State<BillingScreen> {
                                   children: [
                                     Text("₹${item['total'].toStringAsFixed(2)}", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFFF6F00))),
                                     const SizedBox(height: 4),
-                                    Text("${item['sold_qty']} + ${item['free_qty']} Free", style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                                    Text("${item['sold_qty']} + ${item['free_qty']} ${Lang.t('pu_free')}", style: TextStyle(fontSize: 11, color: Colors.grey[600])),
                                   ],
                                 ),
                               ],
@@ -1187,7 +1187,7 @@ class _BillingScreenState extends State<BillingScreen> {
                                 child: const Icon(Icons.discount, color: Colors.red, size: 16),
                               ),
                               const SizedBox(width: 8),
-                              const Text("Discount (%)", style: TextStyle(color: Colors.red, fontWeight: FontWeight.w500)),
+                              Text(Lang.t('w_disc'), style: TextStyle(color: Colors.red, fontWeight: FontWeight.w500)),
                             ],
                           ),
                           SizedBox(
@@ -1235,7 +1235,7 @@ class _BillingScreenState extends State<BillingScreen> {
                           children: [
                             Icon(_isUdhaar ? Icons.credit_card : Icons.money, color: _isUdhaar ? Colors.red : Colors.green, size: 20),
                             const SizedBox(width: 8),
-                            Text(_isUdhaar ? "CREDIT" : "CASH", 
+                            Text(_isUdhaar ? Lang.t('w_credit') : Lang.t('w_cash'), 
                               style: TextStyle(color: _isUdhaar ? Colors.red : Colors.green, fontWeight: FontWeight.bold, fontSize: 14)),
                           ],
                         ),
@@ -1244,7 +1244,7 @@ class _BillingScreenState extends State<BillingScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text("Net Payable", style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                        Text(Lang.t('w_net'), style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                         Text("₹${calc['round_off'].toStringAsFixed(0)}", 
                           style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFFFF6F00))),
                       ],
@@ -1265,7 +1265,7 @@ class _BillingScreenState extends State<BillingScreen> {
                           side: const BorderSide(color: Color(0xFFFF6F00), width: 2),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         ),
-                        child: const Text("PREVIEW", style: TextStyle(color: Color(0xFFFF6F00), fontWeight: FontWeight.bold)),
+                        child: Text(Lang.t('w_preview'), style: TextStyle(color: Color(0xFFFF6F00), fontWeight: FontWeight.bold)),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1286,7 +1286,7 @@ class _BillingScreenState extends State<BillingScreen> {
                               children: [
                                 const Icon(Icons.print, color: Colors.white, size: 20),
                                 const SizedBox(width: 8),
-                                Text(_isEditMode ? "UPDATE BILL" : "SAVE & PRINT", 
+                                Text(_isEditMode ? Lang.t('w_update') : Lang.t('w_saveprint'), 
                                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                               ],
                             ),
