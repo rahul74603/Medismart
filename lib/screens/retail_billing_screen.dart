@@ -40,6 +40,10 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
   final TextEditingController _discountCtrl = TextEditingController(text: "0");
 
   String _payMode = 'Cash'; // Cash | UPI | Udhaar
+  bool _expressOn = true;
+  List<String> _favNames = [];
+  List<Map<String, dynamic>> _lastBillItems = [];
+  String _lastBillNo = '';
 
   @override
   void initState() {
@@ -48,6 +52,14 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
     _mobileCtrl.addListener(() {
       if (_mobileCtrl.text.length == 10 && !_isEditMode) {
         _fetchCustomerDetails(_mobileCtrl.text);
+        _fetchLastBill(_mobileCtrl.text);
+      } else {
+        if (_lastBillItems.isNotEmpty) {
+          setState(() {
+            _lastBillItems = [];
+            _lastBillNo = '';
+          });
+        }
       }
     });
   }
@@ -140,6 +152,17 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
         _invoiceNo = inv;
       });
     }
+    _expressOn = await AppPrefs.getExpressAdd();
+    try {
+      final now = DateTime.now();
+      final top =
+          await DBHelper.getTopItems(now.subtract(const Duration(days: 90)), now, 8);
+      final names = top
+          .map((t) => (t['name'] ?? '').toString())
+          .where((n) => n.isNotEmpty)
+          .toList();
+      if (mounted) setState(() => _favNames = names);
+    } catch (_) {}
   }
 
   /// Group batch rows into products for fast counter search.
@@ -220,7 +243,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
         _searchCtrl.clear();
         _runFilter('');
         setState(() {});
-        _showQtyDialog(prod);
+        _tapProduct(prod);
         return;
       } catch (_) {}
     }
@@ -230,7 +253,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
       _searchCtrl.clear();
       _runFilter('');
       setState(() {});
-      _showQtyDialog(prod);
+      _tapProduct(prod);
     }
   }
 
@@ -261,6 +284,125 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
       remaining -= take;
     }
     return remaining > 0 ? null : alloc;
+  }
+
+  // ---------- EXPRESS (1-tap add, favourites, repeat bill) ----------
+  void _tapProduct(Map<String, dynamic> p) {
+    if (_expressOn) {
+      _expressAdd(p);
+    } else {
+      _showQtyDialog(p);
+    }
+  }
+
+  void _favTap(String name) {
+    try {
+      final prod = _products.firstWhere((p) => p['name'] == name);
+      _tapProduct(prod);
+    } catch (_) {}
+  }
+
+  /// Instant add with FEFO batch + MRP rate (no dialog).
+  void _expressAdd(Map<String, dynamic> product, {int qty = 1, bool silent = false}) {
+    final List<Map<String, dynamic>> batches =
+        List<Map<String, dynamic>>.from(product['batches'] as List);
+    int inStock = batches.fold(
+        0, (s, b) => s + ((((b['quantity'] as num?)?.toInt()) ?? 0)));
+    int inCart = 0;
+    for (var l in _cart) {
+      if (l['name'] == product['name']) {
+        inCart += ((l['sold_qty'] as num?)?.toInt() ?? 0);
+      }
+    }
+    int available = inStock - inCart;
+    if (available <= 0) {
+      if (!silent && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(Lang.t('ex_nostock')), backgroundColor: Colors.red));
+      }
+      return;
+    }
+    if (qty > available) qty = available;
+    double rate = ((product['mrp'] as num?)?.toDouble()) ?? 0.0;
+    final alloc = _allocateFEFO(batches, qty);
+    if (alloc == null) {
+      if (!silent && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(Lang.t('ex_nostock')), backgroundColor: Colors.red));
+      }
+      return;
+    }
+    setState(() {
+      for (var a in alloc) {
+        final row = a['row'] as Map<String, dynamic>;
+        final take = a['take'] as int;
+        _cart.add({
+          'id': row['id'],
+          'name': row['name'],
+          'batch': row['batch'] ?? '',
+          'mrp': (((row['price'] as num?)?.toDouble()) ?? rate),
+          'price': rate,
+          'cost': (((row['wholesale_price'] as num?)?.toDouble()) ?? 0.0),
+          'gst_percent': (((row['gst_percent'] as num?)?.toInt()) ?? 0),
+          'sold_qty': take,
+          'free_qty': 0,
+          'max_qty': (((row['quantity'] as num?)?.toInt()) ?? 0),
+          'total': take * rate,
+          'expiryDate': row['expiryDate'] ?? '',
+          'type': row['type'] ?? '',
+        });
+      }
+      _searchCtrl.clear();
+      _filteredProducts = _products;
+    });
+    if (!silent) HapticFeedback.lightImpact();
+  }
+
+  Future<void> _fetchLastBill(String mobile) async {
+    try {
+      final last = await DBHelper.getLastBillByMobile(mobile);
+      if (!mounted) return;
+      setState(() {
+        if (last == null) {
+          _lastBillItems = [];
+          _lastBillNo = '';
+        } else {
+          _lastBillItems =
+              List<Map<String, dynamic>>.from(last['items'] as List);
+          _lastBillNo =
+              ((last['bill'] as Map)['invoice_no'] ?? '').toString();
+        }
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _repeatLastBill() async {
+    if (_lastBillItems.isEmpty) return;
+    int added = 0, skipped = 0;
+    for (final it in _lastBillItems) {
+      final nm = ((it['name'] ?? it['item_name']) ?? '').toString();
+      final q = (((it['sold_qty'] ?? it['qty']) as num?)?.toInt()) ?? 0;
+      if (nm.isEmpty || q <= 0) {
+        skipped++;
+        continue;
+      }
+      try {
+        final prod = _products.firstWhere((p) => p['name'] == nm);
+        final before = _cart.length;
+        _expressAdd(prod, qty: q, silent: true);
+        if (_cart.length > before) {
+          added++;
+        } else {
+          skipped++;
+        }
+      } catch (_) {
+        skipped++;
+      }
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('$added ${Lang.t('ex_added')}, $skipped ${Lang.t('ex_skipped')}'),
+        backgroundColor: added > 0 ? Colors.green : Colors.red));
   }
 
   // ---------- QTY DIALOG (fast stepper) ----------
@@ -672,7 +814,8 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
         Navigator.pop(context);
       } else {
         // WhatsApp bill option (if mobile number hai)
-        if (_mobileCtrl.text.trim().length == 10) {
+        if ((await AppPrefs.getAskWhatsApp()) &&
+            _mobileCtrl.text.trim().length == 10) {
           await _showWhatsAppOption(billData);
         }
         // Fresh bill for next customer (fast counter flow)
@@ -691,6 +834,8 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
           _mobileCtrl.clear();
           _doctorCtrl.clear();
           _gstinCtrl.clear();
+          _lastBillItems = [];
+          _lastBillNo = '';
           _searchCtrl.clear();
           _discountCtrl.text = "0";
           _payMode = 'Cash';
@@ -886,6 +1031,55 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
               ],
             ),
           ),
+          // Favourites + repeat (express billing)
+          if (_favNames.isNotEmpty || _lastBillItems.isNotEmpty)
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_favNames.isNotEmpty)
+                    SizedBox(
+                      height: 40,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: Center(
+                                child: Text(Lang.t('ex_fav'),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12))),
+                          ),
+                          ..._favNames.map((n) => Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: ActionChip(
+                                  label: Text(n,
+                                      style: const TextStyle(fontSize: 12)),
+                                  onPressed: () => _favTap(n),
+                                ),
+                              )),
+                        ],
+                      ),
+                    ),
+                  if (_lastBillItems.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _repeatLastBill,
+                          icon: const Icon(Icons.repeat, size: 18),
+                          label: Text(
+                              '${Lang.t('ex_repeat')} ($_lastBillNo)'),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           // Search
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
@@ -975,7 +1169,8 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                               ),
                             ],
                           ),
-                          onTap: out ? null : () => _showQtyDialog(p),
+                          onTap: out ? null : () => _tapProduct(p),
+                          onLongPress: out ? null : () => _showQtyDialog(p),
                         ),
                       );
                     },

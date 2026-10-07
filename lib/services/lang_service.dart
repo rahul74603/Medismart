@@ -354,6 +354,15 @@ class Lang {
       'rp_stockval': 'Stock Value',
       'rp_cost': 'Purchase Value',
       'rp_mrp': 'MRP Value',
+      'ex_fav': '⭐ Favourites',
+      'ex_repeat': '🔁 Repeat last bill',
+      'ex_added': 'items added',
+      'ex_skipped': 'skipped (no stock)',
+      'ex_express': 'Express 1-tap add',
+      'ex_express_sub': 'Tap medicine = instant add. Long-press for qty/rate.',
+      'ex_wa': 'Ask WhatsApp after bill',
+      'ex_wa_sub': 'Turn off for faster counter billing',
+      'ex_nostock': 'Out of stock!',
     },
     'hi': {
       // Dashboard
@@ -684,6 +693,15 @@ class Lang {
       'rp_stockval': 'स्टॉक मूल्य',
       'rp_cost': 'खरीद मूल्य',
       'rp_mrp': 'MRP मूल्य',
+      'ex_fav': '⭐ रोज़ बिकने वाली',
+      'ex_repeat': '🔁 पिछला बिल दोहराएं',
+      'ex_added': 'आइटम जुड़े',
+      'ex_skipped': 'छूटी (स्टॉक नहीं)',
+      'ex_express': 'एक्सप्रेस 1-टैप',
+      'ex_express_sub': 'दवाई दबाओ = तुरंत जुड़ेगी। देर दबाओ = मात्रा/रेट।',
+      'ex_wa': 'बिल के बाद WhatsApp पूछें',
+      'ex_wa_sub': 'तेज़ बिलिंग के लिए बंद करें',
+      'ex_nostock': 'स्टॉक खत्म!',
     },
   };
 }

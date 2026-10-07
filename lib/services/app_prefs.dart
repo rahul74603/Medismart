@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AppPrefs {
   static const _kReceiptWidth = 'receipt_width_mm'; // 58 or 80
   static const _kAutoPrint = 'auto_print_receipt'; // bool
+  static const _kExpressAdd = 'express_add'; // 1-tap add in retail billing
+  static const _kAskWa = 'ask_whatsapp_after_bill'; // prompt WA share after save
   static const _kUpiId = 'shop_upi_id'; // UPI id for QR on receipt
   static const _kQrPath = 'shop_qr_path'; // uploaded QR image path
   static const _kLastAutoBackup = 'last_auto_backup'; // yyyy-MM-dd
@@ -29,6 +31,26 @@ class AppPrefs {
   static Future<void> setAutoPrint(bool v) async {
     final p = await SharedPreferences.getInstance();
     await p.setBool(_kAutoPrint, v);
+  }
+
+  static Future<bool> getExpressAdd() async {
+    final p = await SharedPreferences.getInstance();
+    return p.getBool(_kExpressAdd) ?? true;
+  }
+
+  static Future<void> setExpressAdd(bool v) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_kExpressAdd, v);
+  }
+
+  static Future<bool> getAskWhatsApp() async {
+    final p = await SharedPreferences.getInstance();
+    return p.getBool(_kAskWa) ?? true;
+  }
+
+  static Future<void> setAskWhatsApp(bool v) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_kAskWa, v);
   }
 
   static Future<String> getUpiId() async {

@@ -28,6 +28,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   int _receiptWidth = 80;
   bool _autoPrint = true;
+  bool _express = true;
+  bool _askWa = true;
   String _lastBackup = 'Never';
 
   bool _isLoading = true;
@@ -65,6 +67,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // Printer + backup prefs
       final width = await AppPrefs.getReceiptWidth();
       final auto = await AppPrefs.getAutoPrint();
+      final ex = await AppPrefs.getExpressAdd();
+      final wa = await AppPrefs.getAskWhatsApp();
       final upi = await AppPrefs.getUpiId();
       final qr = await AppPrefs.getQrPath();
       final lastBk = await AppPrefs.getLastBackupLabel();
@@ -72,6 +76,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         setState(() {
           _receiptWidth = width;
           _autoPrint = auto;
+          _express = ex;
+          _askWa = wa;
           _upiCtrl.text = upi;
           _qrPath = qr;
           _lastBackup = lastBk;
@@ -83,6 +89,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _savePrinterSettings() async {
     await AppPrefs.setReceiptWidth(_receiptWidth);
     await AppPrefs.setAutoPrint(_autoPrint);
+    await AppPrefs.setExpressAdd(_express);
+    await AppPrefs.setAskWhatsApp(_askWa);
     await AppPrefs.setUpiId(_upiCtrl.text);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -338,6 +346,22 @@ void _restoreData() async {
                     value: _autoPrint,
                     activeColor: Colors.teal,
                     onChanged: (v) => setState(() => _autoPrint = v),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(Lang.t('ex_express'), style: const TextStyle(fontSize: 14)),
+                    subtitle: Text(Lang.t('ex_express_sub'), style: const TextStyle(fontSize: 11)),
+                    value: _express,
+                    activeColor: Colors.teal,
+                    onChanged: (v) => setState(() => _express = v),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(Lang.t('ex_wa'), style: const TextStyle(fontSize: 14)),
+                    subtitle: Text(Lang.t('ex_wa_sub'), style: const TextStyle(fontSize: 11)),
+                    value: _askWa,
+                    activeColor: Colors.teal,
+                    onChanged: (v) => setState(() => _askWa = v),
                   ),
                   Row(
                     children: [

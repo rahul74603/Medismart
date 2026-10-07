@@ -1641,6 +1641,17 @@ class DBHelper {
     return {'cost_value': cost, 'mrp_value': mrp, 'batches': count};
   }
 
+  /// Latest bill (+items) for a mobile — powers Repeat-Last-Bill.
+  static Future<Map<String, dynamic>?> getLastBillByMobile(String mobile) async {
+    final db = await database;
+    final r = await db.query('bills',
+        where: 'mobile = ?', whereArgs: [mobile], orderBy: 'id DESC', limit: 1);
+    if (r.isEmpty) return null;
+    final items = await db.query('bill_items',
+        where: 'bill_id = ?', whereArgs: [r.first['id']]);
+    return {'bill': r.first, 'items': items};
+  }
+
   // 🔥🔥 BACKUP & RESTORE FUNCTIONS ADDED HERE 🔥🔥
 
   static Future<File> getDatabaseFile() async {
