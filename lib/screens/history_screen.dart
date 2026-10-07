@@ -9,6 +9,7 @@ import 'billing_screen.dart';
 import 'retail_billing_screen.dart';
 import 'sales_return_screen.dart';
 import 'view_bill_screen.dart';
+import '../services/staff_mode.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -141,7 +142,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         backgroundColor: Colors.blue[800],
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
+          if (!StaffMode.enabled) IconButton(
             icon: const Icon(Icons.assignment_return),
             tooltip: "Sales Returns",
             onPressed: () => Navigator.push(context, MaterialPageRoute(
@@ -183,14 +184,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             if (val == 'whatsapp') _whatsappBill(bill);
                             if (val == 'delete') _deleteBill(bill);
                           },
-                          itemBuilder: (context) => const [
-                            PopupMenuItem(value: 'view', child: Row(children: [Icon(Icons.visibility, color: Colors.teal, size: 20), SizedBox(width: 10), Text("View Bill")])),
-                            PopupMenuItem(value: 'receipt', child: Row(children: [Icon(Icons.receipt_long, color: Colors.brown, size: 20), SizedBox(width: 10), Text("Thermal Receipt")])),
-                            PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, color: Colors.blue, size: 20), SizedBox(width: 10), Text("Edit Bill")])),
-                            PopupMenuItem(value: 'return', child: Row(children: [Icon(Icons.assignment_return, color: Colors.deepPurple, size: 20), SizedBox(width: 10), Text("Sales Return")])),
-                            PopupMenuItem(value: 'share', child: Row(children: [Icon(Icons.share, color: Colors.deepOrange, size: 20), SizedBox(width: 10), Text("Share PDF")])),
-                            PopupMenuItem(value: 'whatsapp', child: Row(children: [Icon(Icons.chat, color: Colors.green, size: 20), SizedBox(width: 10), Text("WhatsApp Bill")])),
-                            PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red, size: 20), SizedBox(width: 10), Text("Delete Bill")])),
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(value: 'view', child: Row(children: [Icon(Icons.visibility, color: Colors.teal, size: 20), SizedBox(width: 10), Text("View Bill")])),
+                            const PopupMenuItem(value: 'receipt', child: Row(children: [Icon(Icons.receipt_long, color: Colors.brown, size: 20), SizedBox(width: 10), Text("Thermal Receipt")])),
+                            if (!StaffMode.enabled)
+                              const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, color: Colors.blue, size: 20), SizedBox(width: 10), Text("Edit Bill")])),
+                            if (!StaffMode.enabled)
+                              const PopupMenuItem(value: 'return', child: Row(children: [Icon(Icons.assignment_return, color: Colors.deepPurple, size: 20), SizedBox(width: 10), Text("Sales Return")])),
+                            const PopupMenuItem(value: 'share', child: Row(children: [Icon(Icons.share, color: Colors.deepOrange, size: 20), SizedBox(width: 10), Text("Share PDF")])),
+                            const PopupMenuItem(value: 'whatsapp', child: Row(children: [Icon(Icons.chat, color: Colors.green, size: 20), SizedBox(width: 10), Text("WhatsApp Bill")])),
+                            if (!StaffMode.enabled)
+                              const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red, size: 20), SizedBox(width: 10), Text("Delete Bill")])),
                           ],
                         ),
                       ]

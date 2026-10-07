@@ -22,8 +22,14 @@ import 'screens/reports_screen.dart';
 import 'screens/suppliers_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/alerts_screen.dart';
+import 'services/lang_service.dart';
+import 'services/staff_mode.dart';
+import 'screens/refill_reminder_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Lang.load();
+  await StaffMode.load();
   runApp(const MediSmartApp());
 }
 
@@ -232,7 +238,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  "Dashboard Overview", 
+                                  Lang.t('overview'), 
                                   style: TextStyle(color: Colors.tealAccent.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 1)
                                 ),
                                 const SizedBox(height: 5),
@@ -274,16 +280,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Row(
                     children: [
                       _buildStatCard(
-                        "Today's Sale", 
+                        Lang.t('today_sale'), 
                         "₹${todaySale.toStringAsFixed(0)}", 
                         Icons.account_balance_wallet, 
                         const Color(0xFF10B981), // Emerald
                         () => Navigator.push(context, MaterialPageRoute(builder: (c) => const ReportsScreen())),
-                        sub: "Profit ₹${todayProfit.toStringAsFixed(0)}",
+                        sub: "${Lang.t('profit')} ₹${todayProfit.toStringAsFixed(0)}",
                       ),
                       const SizedBox(width: 12),
                       _buildStatCard(
-                        "Low Stock", 
+                        Lang.t('low_stock'), 
                         "$lowStock", 
                         Icons.inventory_2_outlined, 
                         const Color(0xFFF59E0B), // Amber
@@ -291,7 +297,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       const SizedBox(width: 12),
                       _buildStatCard(
-                        "Expiring", 
+                        Lang.t('expiring'), 
                         "$expiring", 
                         Icons.warning_amber_rounded, 
                         const Color(0xFFEF4444), // Red
@@ -312,7 +318,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Quick Actions", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                  Text(Lang.t('quick_actions'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
                   const SizedBox(height: 15),
                   GridView.count(
                     crossAxisCount: 3,
@@ -322,15 +328,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     physics: const NeverScrollableScrollPhysics(), // Disables inner scrolling
                     childAspectRatio: 0.9, // Adjust height of grid items
                     children: [
-                      _buildMenuBtn("Billing", FontAwesomeIcons.fileInvoiceDollar, const Color(0xFF0F766E), _showBillingChooser),
-                      _buildMenuBtn("Stock", FontAwesomeIcons.boxesStacked, const Color(0xFF0284C7), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const StockScreen())).then((_) => _loadStats())),
-                      _buildMenuBtn("Purchase", FontAwesomeIcons.cartShopping, const Color(0xFF92400E), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const PurchaseScreen())).then((_) => _loadStats())),
-                      _buildMenuBtn("Suppliers", FontAwesomeIcons.truckFast, const Color(0xFF0D9488), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const SuppliersScreen())).then((_) => _loadStats())),
-                      _buildMenuBtn("Expiry Claim", FontAwesomeIcons.hourglassHalf, const Color(0xFFDC2626), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const ExpiryClaimScreen())).then((_) => _loadStats())),
-                      _buildMenuBtn("History", FontAwesomeIcons.clockRotateLeft, const Color(0xFF6366F1), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const HistoryScreen()))),
-                      _buildMenuBtn("Customers", FontAwesomeIcons.users, const Color(0xFFD946EF), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const CustomersScreen()))),
-                      _buildMenuBtn("Reports", FontAwesomeIcons.chartPie, const Color(0xFFF97316), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const ReportsScreen()))),
-                      _buildMenuBtn("Settings", FontAwesomeIcons.gear, const Color(0xFF64748B), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const SettingsScreen())).then((_) => _loadStats())),
+                      _buildMenuBtn(Lang.t('m_billing'), FontAwesomeIcons.fileInvoiceDollar, const Color(0xFF0F766E), _showBillingChooser),
+                      _buildMenuBtn(Lang.t('m_stock'), FontAwesomeIcons.boxesStacked, const Color(0xFF0284C7), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const StockScreen())).then((_) => _loadStats())),
+                      if (!StaffMode.enabled) _buildMenuBtn(Lang.t('m_purchase'), FontAwesomeIcons.cartShopping, const Color(0xFF92400E), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const PurchaseScreen())).then((_) => _loadStats())),
+                      if (!StaffMode.enabled) _buildMenuBtn(Lang.t('m_suppliers'), FontAwesomeIcons.truckFast, const Color(0xFF0D9488), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const SuppliersScreen())).then((_) => _loadStats())),
+                      if (!StaffMode.enabled) _buildMenuBtn(Lang.t('m_claim'), FontAwesomeIcons.hourglassHalf, const Color(0xFFDC2626), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const ExpiryClaimScreen())).then((_) => _loadStats())),
+                      _buildMenuBtn(Lang.t('m_history'), FontAwesomeIcons.clockRotateLeft, const Color(0xFF6366F1), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const HistoryScreen()))),
+                      _buildMenuBtn(Lang.t('m_customers'), FontAwesomeIcons.users, const Color(0xFFD946EF), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const CustomersScreen()))),
+                      _buildMenuBtn(Lang.t('m_refills'), FontAwesomeIcons.pills, const Color(0xFF0D9488), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const RefillReminderScreen())).then((_) => _loadStats())),
+                      if (!StaffMode.enabled) _buildMenuBtn(Lang.t('m_reports'), FontAwesomeIcons.chartPie, const Color(0xFFF97316), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const ReportsScreen()))),
+                      if (!StaffMode.enabled) _buildMenuBtn(Lang.t('m_settings'), FontAwesomeIcons.gear, const Color(0xFF64748B), () => Navigator.push(context, MaterialPageRoute(builder: (c) => const SettingsScreen())).then((_) => _loadStats())),
                     ],
                   ),
                   const SizedBox(height: 30), // Bottom padding
@@ -356,15 +363,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text("New Bill",
+              Text(Lang.t('new_bill'),
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
                     child: _chooserCard(
-                      "RETAIL",
-                      "Counter sale\nFast • MRP rate",
+                      Lang.t('retail'),
+                      Lang.t('retail_sub'),
                       FontAwesomeIcons.bolt,
                       Colors.teal,
                       () {
@@ -381,8 +388,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _chooserCard(
-                      "WHOLESALE",
-                      "Party sale\nGST • Basic rate",
+                      Lang.t('wholesale'),
+                      Lang.t('wholesale_sub'),
                       FontAwesomeIcons.fileInvoiceDollar,
                       const Color(0xFFFF6F00),
                       () {

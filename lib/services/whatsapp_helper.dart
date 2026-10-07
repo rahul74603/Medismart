@@ -162,4 +162,18 @@ class WhatsAppHelper {
     final ok = await _openChat(phone, buf.toString());
     if (!ok && context.mounted) _noWhatsApp(context);
   }
+
+  // ---------------- CUSTOM MESSAGE ----------------
+
+  /// Generic WhatsApp message to any 10-digit mobile (used by Refills etc).
+  static Future<void> sendCustomMessage(
+      BuildContext context, String mobile, String message) async {
+    final phone = normalizeNumber(mobile);
+    if (phone.isEmpty) {
+      if (context.mounted) _badNumber(context);
+      return;
+    }
+    final ok = await _openChat(phone, message);
+    if (!ok && context.mounted) _noWhatsApp(context);
+  }
 }

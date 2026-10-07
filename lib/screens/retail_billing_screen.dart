@@ -5,6 +5,7 @@ import '../db_helper.dart';
 import '../services/receipt_helper.dart';
 import '../services/app_prefs.dart';
 import '../services/whatsapp_helper.dart';
+import '../services/lang_service.dart';
 
 /// FAST RETAIL (counter) BILLING
 /// Walk-in customer -> search -> tap -> qty -> print. No GSTIN/address needed.
@@ -732,7 +733,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(_isEditMode ? "Edit Retail Bill" : "Retail Billing",
+            Text(_isEditMode ? Lang.t('r_edit') : Lang.t('r_title'),
                 style:
                     const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             Text("Inv: $_invoiceNo • ${DateFormat('dd MMM, hh:mm a').format(_billDate)}",
@@ -756,7 +757,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                   child: TextField(
                     controller: _nameCtrl,
                     decoration: InputDecoration(
-                      hintText: "Customer name (optional)",
+                      hintText: Lang.t('r_cust_hint'),
                       prefixIcon:
                           const Icon(Icons.person, size: 18, color: Colors.teal),
                       isDense: true,
@@ -773,7 +774,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                     keyboardType: TextInputType.phone,
                     maxLength: 10,
                     decoration: InputDecoration(
-                      hintText: "Mobile",
+                      hintText: Lang.t('r_mob_hint'),
                       counterText: "",
                       prefixIcon:
                           const Icon(Icons.phone, size: 18, color: Colors.teal),
@@ -795,7 +796,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
               onSubmitted: (_) => _onSearchSubmit(),
               autofocus: false,
               decoration: InputDecoration(
-                hintText: "🔍 Search dawai ya salt... (jaise: Dolo)",
+                hintText: Lang.t('r_search'),
                 prefixIcon: const Icon(Icons.search, color: Colors.teal),
                 suffixIcon: _searchCtrl.text.isNotEmpty
                     ? IconButton(
@@ -820,7 +821,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
             flex: 5,
             child: _filteredProducts.isEmpty
                 ? const Center(
-                    child: Text("No medicines found",
+                    child: Text(Lang.t('r_no_med'),
                         style: TextStyle(color: Colors.grey)))
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(
@@ -905,7 +906,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text("Cart (${_cart.length})",
+                          Text("${Lang.t('r_cart')} (${_cart.length})",
                               style: const TextStyle(
                                   fontWeight: FontWeight.bold, fontSize: 15)),
                           TextButton.icon(
@@ -913,7 +914,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                                 setState(() => _cart.clear()),
                             icon: const Icon(Icons.delete_outline,
                                 size: 16, color: Colors.red),
-                            label: const Text("Clear",
+                            label: Text(Lang.t('r_clear'),
                                 style: TextStyle(
                                     color: Colors.red, fontSize: 12)),
                           ),
@@ -1021,7 +1022,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                         controller: _discountCtrl,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
-                          labelText: "Disc %",
+                          labelText: Lang.t('r_disc'),
                           isDense: true,
                           border: OutlineInputBorder(
                               borderRadius:
@@ -1037,15 +1038,15 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                         segments: const [
                           ButtonSegment(
                               value: 'Cash',
-                              label: Text("Cash",
+                              label: Text(Lang.t('cash'),
                                   style: TextStyle(fontSize: 11))),
                           ButtonSegment(
                               value: 'UPI',
-                              label: Text("UPI",
+                              label: Text(Lang.t('upi'),
                                   style: TextStyle(fontSize: 11))),
                           ButtonSegment(
                               value: 'Udhaar',
-                              label: Text("Udhaar",
+                              label: Text(Lang.t('udhaar'),
                                   style: TextStyle(fontSize: 11))),
                         ],
                         selected: {_payMode},
@@ -1091,7 +1092,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                               borderRadius:
                                   BorderRadius.circular(12)),
                         ),
-                        child: const Text("SAVE",
+                        child: Text(Lang.t('r_save'),
                             style: TextStyle(
                                 color: Colors.teal,
                                 fontWeight: FontWeight.bold)),
@@ -1115,8 +1116,8 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                                 color: Colors.white, size: 20),
                         label: Text(
                             _isEditMode
-                                ? "UPDATE BILL"
-                                : "SAVE & PRINT",
+                                ? Lang.t('r_update')
+                                : Lang.t('r_save_print'),
                             style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold)),

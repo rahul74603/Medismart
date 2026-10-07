@@ -24,8 +24,8 @@ class DBHelper {
     String path = await getDbPath();
     return await openDatabase(
       path,
-      // 🔥 VERSION 13: barcode, bill cost_rate (profit), supplier expiry claims
-      version: 13,
+      // 🔥 VERSION 14: refills, prescriptions, expenses (day-close)
+      version: 14,
       onCreate: (db, version) async {
 
         // 1. ITEMS / STOCK TABLE (one row = one batch of a product)
@@ -249,6 +249,44 @@ class DBHelper {
           )
         ''');
 
+        // 15. REFILLS (repeat medicine reminders)
+        await db.execute('''
+          CREATE TABLE refills(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mobile TEXT,
+            customer_name TEXT,
+            item_name TEXT,
+            last_qty INTEGER,
+            last_date TEXT,
+            days_supply INTEGER DEFAULT 30,
+            next_due TEXT,
+            active INTEGER DEFAULT 1
+          )
+        ''');
+
+        // 16. PRESCRIPTIONS (parcha photos)
+        await db.execute('''
+          CREATE TABLE prescriptions(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mobile TEXT,
+            customer_name TEXT,
+            file_path TEXT,
+            note TEXT,
+            date TEXT
+          )
+        ''');
+
+        // 17. EXPENSES (roz ka kharcha)
+        await db.execute('''
+          CREATE TABLE expenses(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT,
+            category TEXT,
+            amount REAL,
+            note TEXT
+          )
+        ''');
+
         await _insertDummyData(db);
       },
 
@@ -432,6 +470,82 @@ class DBHelper {
             ''');
           } catch (e) { print("V13 claims table error: $e"); }
           print("Upgrade to v13 applied successfully.");
+        }
+
+        // 🔥 V14: refills + prescriptions + expenses (+ refill backfill)
+        if (oldVersion < 14) {
+          try {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS refills(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                mobile TEXT,
+                customer_name TEXT,
+                item_name TEXT,
+                last_qty INTEGER,
+                last_date TEXT,
+                days_supply INTEGER DEFAULT 30,
+                next_due TEXT,
+                active INTEGER DEFAULT 1
+              )
+            ''');
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS prescriptions(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                mobile TEXT,
+                customer_name TEXT,
+                file_path TEXT,
+                note TEXT,
+                date TEXT
+              )
+            ''');
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS expenses(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date TEXT,
+                category TEXT,
+                amount REAL,
+                note TEXT
+              )
+            ''');
+          } catch (e) { print("V14 table error: $e"); }
+
+          // Backfill refills from past bills (latest purchase per customer+medicine)
+          try {
+            final bills = await db.query('bills', orderBy: 'id DESC', limit: 500);
+            final seen = <String>{};
+            for (var b in bills) {
+              String mob = (b['mobile'] ?? '').toString();
+              if (mob.length != 10) continue;
+              DateTime bdate;
+              try {
+                bdate = DateFormat('dd/MM/yyyy HH:mm').parse(b['date'].toString());
+              } catch (_) {
+                continue;
+              }
+              final lines = await db.query('bill_items',
+                  where: 'bill_id = ?', whereArgs: [b['id']]);
+              for (var l in lines) {
+                String iname = (l['item_name'] ?? '').toString();
+                if (iname.isEmpty) continue;
+                String key = '$mob|$iname';
+                if (seen.contains(key)) continue;
+                seen.add(key);
+                int qty = ((l['qty'] as num?)?.toInt()) ?? 0;
+                final due = bdate.add(const Duration(days: 30));
+                await db.insert('refills', {
+                  'mobile': mob,
+                  'customer_name': (b['customer_name'] ?? '').toString(),
+                  'item_name': iname,
+                  'last_qty': qty,
+                  'last_date': b['date'].toString(),
+                  'days_supply': 30,
+                  'next_due': DateFormat('dd/MM/yyyy').format(due),
+                  'active': 1,
+                });
+              }
+            }
+          } catch (e) { print("V14 refill backfill error: $e"); }
+          print("Upgrade to v14 applied successfully.");
         }
       },
     );
@@ -650,6 +764,47 @@ class DBHelper {
         'credit': paid,
         'balance': udhaar
       });
+    }
+    // Refill hook: track repeat medicines per customer (mobile bills only)
+    if (bill['mobile'] != null && bill['mobile'].toString().length == 10) {
+      try {
+        String mob = bill['mobile'].toString();
+        DateTime bdate = DateTime.now();
+        try {
+          bdate = DateFormat('dd/MM/yyyy HH:mm').parse(bill['date'].toString());
+        } catch (_) {}
+        for (var item in items) {
+          String iname = (item['name'] ?? '').toString();
+          if (iname.isEmpty) continue;
+          int qty = ((item['qty'] ?? item['sold_qty']) as num?)?.toInt() ?? 0;
+          final ex = await db.query('refills',
+              where: 'mobile = ? AND item_name = ?',
+              whereArgs: [mob, iname], limit: 1);
+          int days = 30;
+          if (ex.isNotEmpty) {
+            days = (((ex.first['days_supply'] as num?)?.toInt()) ?? 30);
+          }
+          final due = bdate.add(Duration(days: days));
+          final row = {
+            'mobile': mob,
+            'customer_name': (bill['customer_name'] ?? '').toString(),
+            'item_name': iname,
+            'last_qty': qty,
+            'last_date': bill['date'].toString(),
+            'days_supply': days,
+            'next_due': DateFormat('dd/MM/yyyy').format(due),
+            'active': 1,
+          };
+          if (ex.isEmpty) {
+            await db.insert('refills', row);
+          } else {
+            await db.update('refills', row,
+                where: 'id = ?', whereArgs: [ex.first['id']]);
+          }
+        }
+      } catch (e) {
+        print('Refill hook error: $e');
+      }
     }
     return billId;
   }
@@ -1192,6 +1347,196 @@ class DBHelper {
       print('getProfit error: $e');
     }
     return {'profit': profit, 'untracked_lines': untracked};
+  }
+
+  // --- REFILL FUNCTIONS ---
+  static Future<List<Map<String, dynamic>>> getAllRefills() async =>
+      (await database).query('refills', where: 'active = 1', orderBy: 'next_due ASC');
+
+  static Future<void> updateRefillDays(int id, int days) async {
+    final db = await database;
+    final r = await db.query('refills', where: 'id = ?', whereArgs: [id], limit: 1);
+    if (r.isEmpty) return;
+    DateTime base = DateTime.now();
+    try {
+      base = DateFormat('dd/MM/yyyy HH:mm').parse((r.first['last_date'] ?? '').toString());
+    } catch (_) {
+      try {
+        base = DateFormat('dd/MM/yyyy').parse((r.first['last_date'] ?? '').toString().split(' ').first);
+      } catch (_) {}
+    }
+    final due = base.add(Duration(days: days < 1 ? 1 : days));
+    await db.update('refills', {
+      'days_supply': days < 1 ? 1 : days,
+      'next_due': DateFormat('dd/MM/yyyy').format(due),
+    }, where: 'id = ?', whereArgs: [id]);
+  }
+
+  static Future<void> markRefillDone(int id) async {
+    final db = await database;
+    final r = await db.query('refills', where: 'id = ?', whereArgs: [id], limit: 1);
+    if (r.isEmpty) return;
+    int days = (((r.first['days_supply'] as num?)?.toInt()) ?? 30);
+    final due = DateTime.now().add(Duration(days: days));
+    await db.update('refills', {
+      'next_due': DateFormat('dd/MM/yyyy').format(due),
+    }, where: 'id = ?', whereArgs: [id]);
+  }
+
+  static Future<void> deleteRefill(int id) async =>
+      (await database).delete('refills', where: 'id = ?', whereArgs: [id]);
+
+  // --- PRESCRIPTION FUNCTIONS ---
+  static Future<int> addPrescription(Map<String, dynamic> data) async =>
+      (await database).insert('prescriptions', data);
+
+  static Future<List<Map<String, dynamic>>> getPrescriptions([String? mobile]) async {
+    final db = await database;
+    if (mobile == null || mobile.isEmpty) {
+      return db.query('prescriptions', orderBy: 'id DESC');
+    }
+    return db.query('prescriptions',
+        where: 'mobile = ?', whereArgs: [mobile], orderBy: 'id DESC');
+  }
+
+  static Future<void> deletePrescription(int id) async =>
+      (await database).delete('prescriptions', where: 'id = ?', whereArgs: [id]);
+
+  // --- EXPENSE FUNCTIONS ---
+  static Future<int> addExpense(Map<String, dynamic> data) async =>
+      (await database).insert('expenses', data);
+
+  static Future<List<Map<String, dynamic>>> getExpensesByDate(String ddMMyyyy) async =>
+      (await database).query('expenses', where: 'date = ?', whereArgs: [ddMMyyyy], orderBy: 'id DESC');
+
+  static Future<void> deleteExpense(int id) async =>
+      (await database).delete('expenses', where: 'id = ?', whereArgs: [id]);
+
+  static Future<List<Map<String, dynamic>>> getTodayExpenses() async =>
+      getExpensesByDate(DateFormat('dd/MM/yyyy').format(DateTime.now()));
+
+  /// Day-close summary: cash collected by mode + profit + purchase paid + refunds.
+  static Future<Map<String, dynamic>> getDaySummary([DateTime? day]) async {
+    final db = await database;
+    final d = day ?? DateTime.now();
+    final ds = DateFormat('dd/MM/yyyy').format(d);
+    double cash = 0, upi = 0, udhaar = 0;
+    try {
+      final rows = await db.rawQuery(
+          "SELECT payment_mode, SUM(net_amount) as t FROM bills WHERE date LIKE '$ds%' GROUP BY payment_mode");
+      for (final r in rows) {
+        final m = (r['payment_mode'] ?? '').toString();
+        final t = ((r['t'] as num?)?.toDouble()) ?? 0.0;
+        if (m == 'UPI') {
+          upi += t;
+        } else if (m == 'Udhaar') {
+          udhaar += t;
+        } else {
+          cash += t;
+        }
+      }
+    } catch (_) {}
+    double profit = 0;
+    try {
+      final pf = await getProfit(d, d);
+      profit = ((pf['profit'] as num?)?.toDouble()) ?? 0.0;
+    } catch (_) {}
+    double purchase = 0, refunds = 0;
+    try {
+      final pr = await db.rawQuery(
+          "SELECT SUM(paid_amount) as t FROM purchases WHERE date LIKE '$ds%'");
+      purchase = ((pr.first['t'] as num?)?.toDouble()) ?? 0.0;
+    } catch (_) {}
+    try {
+      final rf = await db.rawQuery(
+          "SELECT SUM(total_amount) as t FROM sales_returns WHERE date LIKE '$ds%'");
+      refunds = ((rf.first['t'] as num?)?.toDouble()) ?? 0.0;
+    } catch (_) {}
+    return {
+      'Cash': cash, 'UPI': upi, 'Udhaar': udhaar,
+      'profit': profit, 'purchase': purchase, 'refunds': refunds,
+    };
+  }
+
+  /// Month-wise GST: slab breakup for outward (sales) + inward (purchase ITC).
+  /// Retail item totals are GST-inclusive (MRP); wholesale/purchase are exclusive.
+  static Future<Map<String, dynamic>> getMonthGst(int year, int month) async {
+    final db = await database;
+    final Map<double, double> oTax = {}, oVal = {};
+    final Map<double, double> iTax = {}, iVal = {};
+    int b2b = 0, b2c = 0;
+    bool inMonth(String? dt) {
+      if (dt == null || dt.length < 10) return false;
+      try {
+        final d = DateFormat('dd/MM/yyyy').parse(dt.substring(0, 10));
+        return d.year == year && d.month == month;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    try {
+      final bills = await db.query('bills');
+      for (final b in bills) {
+        if (!inMonth((b['date'] ?? '').toString())) continue;
+        final gstin = (b['customer_gstin'] ?? '').toString().trim();
+        if (gstin.isNotEmpty) {
+          b2b++;
+        } else {
+          b2c++;
+        }
+        final retail = (b['bill_type'] ?? 'Retail').toString() != 'Wholesale';
+        final items = await db.query('bill_items',
+            where: 'bill_id = ?', whereArgs: [b['id']]);
+        for (final it in items) {
+          final g = (((it['gst_percent'] as num?)?.toDouble()) ?? 0.0);
+          final tot = (((it['total'] as num?)?.toDouble()) ?? 0.0);
+          if (g <= 0 || tot <= 0) continue;
+          double tax, val;
+          if (retail) {
+            tax = tot * g / (100 + g);
+            val = tot - tax;
+          } else {
+            val = tot;
+            tax = tot * g / 100;
+          }
+          oTax[g] = (oTax[g] ?? 0) + tax;
+          oVal[g] = (oVal[g] ?? 0) + val;
+        }
+      }
+    } catch (e) {
+      print('getMonthGst outward error: $e');
+    }
+    try {
+      final purs = await db.query('purchases');
+      for (final p in purs) {
+        if (!inMonth((p['date'] ?? '').toString())) continue;
+        final items = await db.query('purchase_items',
+            where: 'purchase_id = ?', whereArgs: [p['id']]);
+        for (final it in items) {
+          final g = (((it['gst_percent'] as num?)?.toDouble()) ?? 0.0);
+          final tot = (((it['total'] as num?)?.toDouble()) ?? 0.0);
+          if (g <= 0 || tot <= 0) continue;
+          iVal[g] = (iVal[g] ?? 0) + tot;
+          iTax[g] = (iTax[g] ?? 0) + tot * g / 100;
+        }
+      }
+    } catch (e) {
+      print('getMonthGst inward error: $e');
+    }
+    List<Map<String, dynamic>> slabs(Map<double, double> v, Map<double, double> t) {
+      final keys = v.keys.toList()..sort();
+      return keys
+          .map((k) => {'rate': k, 'taxable': v[k] ?? 0.0, 'tax': t[k] ?? 0.0})
+          .toList();
+    }
+
+    return {
+      'out_slabs': slabs(oVal, oTax),
+      'in_slabs': slabs(iVal, iTax),
+      'b2b_count': b2b,
+      'b2c_count': b2c,
+    };
   }
 
   // 🔥🔥 BACKUP & RESTORE FUNCTIONS ADDED HERE 🔥🔥

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../db_helper.dart';
 import 'supplier_order_screen.dart';
+import '../services/staff_mode.dart';
 
 /// STOCK MANAGEMENT - grouped by product, batches inside (FEFO ordered).
 /// One product can have multiple batches; billing auto-picks earliest expiry.
@@ -634,15 +635,16 @@ class _StockScreenState extends State<StockScreen> {
                                       padding: EdgeInsets.zero,
                                       onPressed: () => _showForm(item: row),
                                     ),
-                                    const SizedBox(width: 12),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-                                      constraints: const BoxConstraints(),
-                                      padding: EdgeInsets.zero,
-                                      onPressed: () => _deleteItem(
-                                          (row['id'] as num).toInt(),
-                                          "${row['name']} (Batch ${row['batch']})"),
-                                    ),
+                                    if (!StaffMode.enabled) const SizedBox(width: 12),
+                                    if (!StaffMode.enabled)
+                                      IconButton(
+                                        icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                        constraints: const BoxConstraints(),
+                                        padding: EdgeInsets.zero,
+                                        onPressed: () => _deleteItem(
+                                            (row['id'] as num).toInt(),
+                                            "${row['name']} (Batch ${row['batch']})"),
+                                      ),
                                   ],
                                 ),
                               );

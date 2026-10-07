@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../db_helper.dart';
 import 'supplier_order_screen.dart';
 import 'expiry_claim_screen.dart';
+import '../services/staff_mode.dart';
 
 class AlertsScreen extends StatefulWidget {
   final String alertType; // 'STOCK' or 'EXPIRY'
@@ -102,7 +103,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         centerTitle: true,
       ),
-      floatingActionButton: (!_isLoading && _filteredItems.isNotEmpty)
+      floatingActionButton: (!StaffMode.enabled && !_isLoading && _filteredItems.isNotEmpty)
           ? FloatingActionButton.extended(
               backgroundColor: themeColor,
               onPressed: () {

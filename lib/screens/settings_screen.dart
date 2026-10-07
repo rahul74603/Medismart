@@ -6,6 +6,8 @@ import 'package:file_picker/file_picker.dart';
 import '../db_helper.dart'; // ✅ ये लाइन अब सही कर दी गई है (../ लगा दिया)
 import '../services/app_prefs.dart';
 import '../services/auto_backup_service.dart';
+import '../services/lang_service.dart';
+import '../services/staff_mode.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -259,13 +261,13 @@ void _restoreData() async {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Settings"), backgroundColor: Colors.teal, foregroundColor: Colors.white),
+      appBar: AppBar(title: Text(Lang.t('s_title')), backgroundColor: Colors.teal, foregroundColor: Colors.white),
       body: _isLoading ? const Center(child: CircularProgressIndicator()) : SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Shop Details (For Bill Header)", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal, fontSize: 16)),
+            Text(Lang.t('s_shop'), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal, fontSize: 16)),
             const SizedBox(height: 15),
             
             _buildTextField("Shop Name", _nameCtrl, Icons.store),
@@ -277,7 +279,7 @@ void _restoreData() async {
             _buildTextField("GSTIN (Optional)", _gstCtrl, Icons.receipt_long),
             
             const SizedBox(height: 20),
-            const Text("Bill Terms (Footer)", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal, fontSize: 16)),
+            Text(Lang.t('s_terms_h'), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal, fontSize: 16)),
             const SizedBox(height: 10),
             TextField(
               controller: _termsCtrl,
@@ -297,7 +299,7 @@ void _restoreData() async {
 
             const Divider(height: 40, thickness: 2),
 
-            const Text("Printer Settings (Thermal)", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal, fontSize: 16)),
+            Text(Lang.t('s_printer'), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal, fontSize: 16)),
             const SizedBox(height: 15),
 
             Container(
@@ -365,7 +367,54 @@ void _restoreData() async {
 
             const Divider(height: 40, thickness: 2),
 
-            const Text("Data Management", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal, fontSize: 16)),
+            Text(Lang.t('s_lang'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal, fontSize: 16)),
+            const SizedBox(height: 6),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+              child: SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'en', label: Text('English')),
+                  ButtonSegment(value: 'hi', label: Text('हिंदी')),
+                ],
+                selected: {Lang.code},
+                onSelectionChanged: (s) async {
+                  await Lang.set(s.first);
+                  if (!context.mounted) return;
+                  Navigator.popUntil(context, (r) => r.isFirst);
+                },
+              ),
+            ),
+
+            const Divider(height: 40, thickness: 2),
+
+            Text(Lang.t('s_staff'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal, fontSize: 16)),
+            const SizedBox(height: 6),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    title: Text(Lang.t('staff_mode')),
+                    subtitle: Text(StaffMode.enabled ? Lang.t('staff_on') : Lang.t('staff_off')),
+                    value: StaffMode.enabled,
+                    onChanged: (v) => _toggleStaff(v),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.pin, color: Colors.teal),
+                    title: Text(Lang.t('staff_set_pin')),
+                    onTap: _setStaffPin,
+                  ),
+                ],
+              ),
+            ),
+
+            const Divider(height: 40, thickness: 2),
+
+            Text(Lang.t('s_data'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal, fontSize: 16)),
             const SizedBox(height: 6),
             Container(
               width: double.infinity,
@@ -436,6 +485,82 @@ void _restoreData() async {
         ),
       ),
     );
+  }
+
+    Future<void> _toggleStaff(bool v) async {
+    if (v) {
+      if (!await StaffMode.hasPin()) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('staff_need_pin')), backgroundColor: Colors.red));
+        return;
+      }
+      await StaffMode.set(true);
+    } else {
+      final pin = await _askPin(Lang.t('staff_exit'));
+      if (pin == null) return;
+      if (!await StaffMode.check(pin)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('staff_wrong')), backgroundColor: Colors.red));
+        return;
+      }
+      await StaffMode.set(false);
+    }
+    if (!mounted) return;
+    Navigator.popUntil(context, (r) => r.isFirst);
+  }
+
+  Future<String?> _askPin(String title) async {
+    final c = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: c,
+          keyboardType: TextInputType.number,
+          maxLength: 4,
+          obscureText: true,
+          decoration: InputDecoration(hintText: Lang.t('staff_pin_hint')),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(Lang.t('cancel'))),
+          ElevatedButton(onPressed: () => Navigator.pop(context, c.text.trim()), child: Text(Lang.t('done'))),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _setStaffPin() async {
+    final c1 = TextEditingController();
+    final c2 = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(Lang.t('staff_set_pin')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: c1, keyboardType: TextInputType.number, maxLength: 4, obscureText: true,
+                decoration: InputDecoration(hintText: Lang.t('staff_pin_hint'))),
+            TextField(controller: c2, keyboardType: TextInputType.number, maxLength: 4, obscureText: true,
+                decoration: InputDecoration(hintText: Lang.t('staff_pin_confirm'))),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(Lang.t('cancel'))),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: Text(Lang.t('save'))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    if (c1.text.trim().length != 4 || c1.text.trim() != c2.text.trim()) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('staff_wrong')), backgroundColor: Colors.red));
+      return;
+    }
+    await StaffMode.setPin(c1.text.trim());
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('done'))));
   }
 
   Widget _buildTextField(String label, TextEditingController ctrl, IconData icon, {bool isNumber = false}) {

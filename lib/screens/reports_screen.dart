@@ -7,6 +7,8 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../db_helper.dart';
+import 'day_close_screen.dart';
+import 'gst_report_screen.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -190,11 +192,23 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F2F5), // Light Grey Background
       appBar: AppBar(
-        title: const Text("Business Analytics"), 
-        backgroundColor: Colors.white, 
+        title: const Text("Business Analytics"),
+        backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.nightlight_round, color: Color(0xFF0F766E)),
+            tooltip: "Day Close",
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DayCloseScreen())),
+          ),
+          IconButton(
+            icon: const Icon(Icons.receipt_long, color: Color(0xFFB45309)),
+            tooltip: "GST Report",
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GstReportScreen())),
+          ),
+        ],
       ),
       body: _isLoading ? const Center(child: CircularProgressIndicator()) : SingleChildScrollView(
         padding: const EdgeInsets.all(16),
