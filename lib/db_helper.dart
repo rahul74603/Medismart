@@ -1471,9 +1471,14 @@ class DBHelper {
           "SELECT SUM(total_amount) as t FROM sales_returns WHERE date LIKE '$ds%'");
       refunds = ((rf.first['t'] as num?)?.toDouble()) ?? 0.0;
     } catch (_) {}
+    double collection = 0;
+    try {
+      collection = await getDayCollection(d);
+    } catch (_) {}
     return {
       'Cash': cash, 'UPI': upi, 'Udhaar': udhaar,
       'profit': profit, 'purchase': purchase, 'refunds': refunds,
+      'collection': collection,
     };
   }
 
@@ -1556,6 +1561,84 @@ class DBHelper {
       'b2b_count': b2b,
       'b2c_count': b2c,
     };
+  }
+
+  /// Udhaar collection received on a day (customer_ledger payments only —
+  /// bill rows and sales-return adjustments excluded).
+  static Future<double> getDayCollection([DateTime? day]) async {
+    final db = await database;
+    final ds = DateFormat('dd/MM/yyyy').format(day ?? DateTime.now());
+    try {
+      final r = await db.rawQuery(
+          "SELECT SUM(credit) as t FROM customer_ledger WHERE date LIKE '$ds%' "
+          "AND (debit IS NULL OR debit = 0) "
+          "AND description NOT LIKE 'Bill No:%' "
+          "AND description NOT LIKE 'Sales Return%' "
+          "AND description NOT LIKE 'Return%'");
+      return ((r.first['t'] as num?)?.toDouble()) ?? 0.0;
+    } catch (_) {
+      return 0.0;
+    }
+  }
+
+  /// Top-selling medicines in a date range (by qty).
+  static Future<List<Map<String, dynamic>>> getTopItems(
+      DateTime start, DateTime end, [int limit = 5]) async {
+    final db = await database;
+    final s = DateTime(start.year, start.month, start.day);
+    final e = DateTime(end.year, end.month, end.day, 23, 59, 59);
+    final Map<String, Map<String, dynamic>> agg = {};
+    try {
+      final bills = await db.query('bills');
+      for (final b in bills) {
+        try {
+          final bd = DateFormat('dd/MM/yyyy')
+              .parse((b['date'] ?? '').toString().split(' ').first);
+          if (bd.isBefore(s) || bd.isAfter(e)) continue;
+        } catch (_) {
+          continue;
+        }
+        final items = await db.query('bill_items',
+            where: 'bill_id = ?', whereArgs: [b['id']]);
+        for (final it in items) {
+          final nm = ((it['name'] ?? it['item_name']) ?? '').toString();
+          if (nm.isEmpty) continue;
+          final q = (((it['sold_qty'] ?? it['qty']) as num?)?.toInt()) ?? 0;
+          final t = ((it['total'] as num?)?.toDouble()) ?? 0.0;
+          final cur = agg[nm] ?? {'name': nm, 'qty': 0, 'total': 0.0};
+          cur['qty'] = (cur['qty'] as int) + q;
+          cur['total'] = (cur['total'] as double) + t;
+          agg[nm] = cur;
+        }
+      }
+    } catch (e) {
+      print('getTopItems error: $e');
+    }
+    final list = agg.values.toList()
+      ..sort((a, b) => (b['qty'] as int).compareTo(a['qty'] as int));
+    return list.take(limit < 1 ? 5 : limit).toList();
+  }
+
+  /// Total stock value at purchase rate and at MRP.
+  static Future<Map<String, dynamic>> getStockValue() async {
+    final db = await database;
+    double cost = 0, mrp = 0;
+    int count = 0;
+    try {
+      final rows = await db.query('items');
+      for (final r in rows) {
+        final q = (((r['quantity'] as num?)?.toInt()) ?? 0);
+        if (q <= 0) continue;
+        final buy = (((r['wholesale_price'] ?? r['price']) as num?)?.toDouble()) ?? 0.0;
+        final mr = (((r['mrp'] ?? r['price']) as num?)?.toDouble()) ?? 0.0;
+        cost += q * buy;
+        mrp += q * mr;
+        count++;
+      }
+    } catch (e) {
+      print('getStockValue error: $e');
+    }
+    return {'cost_value': cost, 'mrp_value': mrp, 'batches': count};
   }
 
   // 🔥🔥 BACKUP & RESTORE FUNCTIONS ADDED HERE 🔥🔥

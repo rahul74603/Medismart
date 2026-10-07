@@ -346,6 +346,14 @@ class Lang {
       'ec_new': 'New Claim',
       'ec_hist': 'History',
       'ec_settled': 'Claim settled! Stock + udhaar adjusted.',
+      'r_doctor': 'Doctor (optional)',
+      'r_gstin': 'GSTIN (optional)',
+      'dc_collect': 'Udhaar Collection',
+      'rp_top': 'Top Medicines',
+      'rp_sold': 'sold',
+      'rp_stockval': 'Stock Value',
+      'rp_cost': 'Purchase Value',
+      'rp_mrp': 'MRP Value',
     },
     'hi': {
       // Dashboard
@@ -668,6 +676,14 @@ class Lang {
       'ec_new': 'नया क्लेम',
       'ec_hist': 'हिस्ट्री',
       'ec_settled': 'क्लेम चुकता! स्टॉक + उधार ठीक।',
+      'r_doctor': 'डॉक्टर',
+      'r_gstin': 'GSTIN',
+      'dc_collect': 'उधार वसूली',
+      'rp_top': 'टॉप दवाइयां',
+      'rp_sold': 'बिकी',
+      'rp_stockval': 'स्टॉक मूल्य',
+      'rp_cost': 'खरीद मूल्य',
+      'rp_mrp': 'MRP मूल्य',
     },
   };
 }

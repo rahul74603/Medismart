@@ -164,6 +164,10 @@ class ReceiptHelper {
           kv('Customer:', _s(billData['customer_name'])),
           if (_s(billData['mobile']).isNotEmpty)
             kv('Mobile:', _s(billData['mobile'])),
+          if (_s(billData['doctor_name']).isNotEmpty)
+            kv('Doctor:', _s(billData['doctor_name'])),
+          if (_s(billData['customer_gstin']).isNotEmpty)
+            kv('GSTIN:', _s(billData['customer_gstin'])),
           kv('Pay Mode:', _s(billData['payment_mode'])),
           divider(),
           // Header

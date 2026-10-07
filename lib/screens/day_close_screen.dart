@@ -46,7 +46,8 @@ class _DayCloseScreenState extends State<DayCloseScreen> {
   double get _purchase => ((_sum['purchase'] as num?)?.toDouble()) ?? 0.0;
   double get _expenseTotal => _expenses.fold(0.0, (s, e) => s + (((e['amount'] as num?)?.toDouble()) ?? 0.0));
   double get _refunds => ((_sum['refunds'] as num?)?.toDouble()) ?? 0.0;
-  double get _net => _cashIn - _purchase - _expenseTotal - _refunds;
+  double get _collection => ((_sum['collection'] as num?)?.toDouble()) ?? 0.0;
+  double get _net => _cashIn + _collection - _purchase - _expenseTotal - _refunds;
 
   Future<void> _addExpense() async {
     final amtC = TextEditingController();
@@ -110,8 +111,10 @@ class _DayCloseScreenState extends State<DayCloseScreen> {
     final ds = '${d.day}/${d.month}/${d.year}';
     final hi = Lang.code == 'hi';
     final text = hi
-        ? '📊 *$shop*\nदिन का हिसाब — $ds\n\n💰 बिक्री वसूली: ₹${_cashIn.toStringAsFixed(0)}\n📒 उधार दिया: ₹${_udhaar.toStringAsFixed(0)}\n🛒 खरीद में दिया: ₹${_purchase.toStringAsFixed(0)}\n🧾 खर्चे: ₹${_expenseTotal.toStringAsFixed(0)}\n↩️ वापसी: ₹${_refunds.toStringAsFixed(0)}\n\n✅ *हाथ में नकद: ₹${_net.toStringAsFixed(0)}*\n📈 मुनाफ़ा: ₹${_profit.toStringAsFixed(0)}'
-        : '📊 *$shop*\nDay Close — $ds\n\n💰 Sale collected: ₹${_cashIn.toStringAsFixed(0)}\n📒 Udhaar given: ₹${_udhaar.toStringAsFixed(0)}\n🛒 Purchase paid: ₹${_purchase.toStringAsFixed(0)}\n🧾 Expenses: ₹${_expenseTotal.toStringAsFixed(0)}\n↩️ Refunds: ₹${_refunds.toStringAsFixed(0)}\n\n✅ *Net cash in hand: ₹${_net.toStringAsFixed(0)}*\n📈 Profit: ₹${_profit.toStringAsFixed(0)}';
+        ? '📊 *$shop*\nदिन का हिसाब — $ds\n\n💰 बिक्री वसूली: ₹${_cashIn.toStringAsFixed(0)}\n💵 उधार वसूली: ₹${_collection.toStringAsFixed(0)}
+📒 उधार दिया: ₹${_udhaar.toStringAsFixed(0)}\n🛒 खरीद में दिया: ₹${_purchase.toStringAsFixed(0)}\n🧾 खर्चे: ₹${_expenseTotal.toStringAsFixed(0)}\n↩️ वापसी: ₹${_refunds.toStringAsFixed(0)}\n\n✅ *हाथ में नकद: ₹${_net.toStringAsFixed(0)}*\n📈 मुनाफ़ा: ₹${_profit.toStringAsFixed(0)}'
+        : '📊 *$shop*\nDay Close — $ds\n\n💰 Sale collected: ₹${_cashIn.toStringAsFixed(0)}\n💵 Udhaar collected: ₹${_collection.toStringAsFixed(0)}
+📒 Udhaar given: ₹${_udhaar.toStringAsFixed(0)}\n🛒 Purchase paid: ₹${_purchase.toStringAsFixed(0)}\n🧾 Expenses: ₹${_expenseTotal.toStringAsFixed(0)}\n↩️ Refunds: ₹${_refunds.toStringAsFixed(0)}\n\n✅ *Net cash in hand: ₹${_net.toStringAsFixed(0)}*\n📈 Profit: ₹${_profit.toStringAsFixed(0)}';
     await Share.share(text);
   }
 
@@ -151,6 +154,7 @@ class _DayCloseScreenState extends State<DayCloseScreen> {
                         _row('📒 ${Lang.t('dc_udhaar')}', _udhaar, color: Colors.orange.shade800),
                         _row('🛒 ${Lang.t('dc_purchase')}', _purchase, color: Colors.brown),
                         _row('🧾 ${Lang.t('dc_expense')}', _expenseTotal, color: Colors.red.shade700),
+                        _row('💵 ${Lang.t('dc_collect')}', _collection, color: Colors.green.shade800),
                         _row('↩️ ${Lang.t('dc_returns')}', _refunds, color: Colors.red.shade700),
                         const Divider(),
                         _row('✅ ${Lang.t('dc_net')}', _net, bold: true, color: _net >= 0 ? Colors.green.shade800 : Colors.red),

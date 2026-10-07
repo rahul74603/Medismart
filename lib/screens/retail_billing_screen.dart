@@ -34,6 +34,8 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
 
   final TextEditingController _nameCtrl = TextEditingController();
   final TextEditingController _mobileCtrl = TextEditingController();
+  final TextEditingController _doctorCtrl = TextEditingController();
+  final TextEditingController _gstinCtrl = TextEditingController();
   final TextEditingController _searchCtrl = TextEditingController();
   final TextEditingController _discountCtrl = TextEditingController(text: "0");
 
@@ -54,6 +56,8 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
   void dispose() {
     _nameCtrl.dispose();
     _mobileCtrl.dispose();
+    _doctorCtrl.dispose();
+    _gstinCtrl.dispose();
     _searchCtrl.dispose();
     _discountCtrl.dispose();
     super.dispose();
@@ -68,6 +72,8 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
       inv = widget.editBillData!['invoice_no'] ?? inv;
       _mobileCtrl.text = widget.editBillData!['mobile'] ?? '';
       _nameCtrl.text = (widget.editBillData!['customer_name'] ?? '').toString();
+      _doctorCtrl.text = (widget.editBillData!['doctor_name'] ?? '').toString();
+      _gstinCtrl.text = (widget.editBillData!['customer_gstin'] ?? '').toString();
       try {
         _billDate = DateFormat('dd/MM/yyyy HH:mm').parse(widget.editBillData!['date']);
       } catch (_) {
@@ -603,7 +609,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
       Map<String, dynamic> billData = {
         'invoice_no': _invoiceNo,
         'customer_name': custName,
-        'doctor_name': '',
+        'doctor_name': _doctorCtrl.text.trim(),
         'mobile': _mobileCtrl.text.trim(),
         'date': DateFormat('dd/MM/yyyy HH:mm').format(_billDate),
         'sub_total': c['gross'],
@@ -613,7 +619,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
         'net_amount': c['round'],
         'payment_mode': _payMode,
         'bill_type': 'Retail',
-        'customer_gstin': '',
+        'customer_gstin': _gstinCtrl.text.trim(),
         'customer_address': '',
       };
 
@@ -683,6 +689,8 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
           _billDate = DateTime.now();
           _nameCtrl.clear();
           _mobileCtrl.clear();
+          _doctorCtrl.clear();
+          _gstinCtrl.clear();
           _searchCtrl.clear();
           _discountCtrl.text = "0";
           _payMode = 'Cash';
@@ -830,6 +838,45 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                       counterText: "",
                       prefixIcon:
                           const Icon(Icons.phone, size: 18, color: Colors.teal),
+                      isDense: true,
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Doctor + GSTIN (optional)
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: TextField(
+                    controller: _doctorCtrl,
+                    decoration: InputDecoration(
+                      hintText: Lang.t('r_doctor'),
+                      prefixIcon:
+                          const Icon(Icons.medical_services, size: 18, color: Colors.teal),
+                      isDense: true,
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: _gstinCtrl,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: InputDecoration(
+                      hintText: Lang.t('r_gstin'),
+                      prefixIcon:
+                          const Icon(Icons.badge, size: 18, color: Colors.teal),
                       isDense: true,
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10)),

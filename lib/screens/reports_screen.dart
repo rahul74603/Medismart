@@ -31,6 +31,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
   double _avgBillValue = 0.0;
   double _profit = 0.0;
   double _margin = 0.0;
+  List<Map<String, dynamic>> _topItems = [];
+  Map<String, dynamic> _stockVal = {};
 
   // Chart Data
   Map<String, double> _dailySales = {};
@@ -46,11 +48,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
   void _loadData() async {
     final data = await DBHelper.getAllBills();
     final pf = await DBHelper.getProfit(_startDate, _endDate);
+    final top = await DBHelper.getTopItems(_startDate, _endDate);
+    final sval = await DBHelper.getStockValue();
     if(mounted) {
       setState(() {
         _applyDateFilter(data);
         _profit = ((pf['profit'] as num?)?.toDouble()) ?? 0.0;
         _margin = _totalSale > 0 ? (_profit / _totalSale) * 100 : 0.0;
+        _topItems = top;
+        _stockVal = sval;
         _isLoading = false;
       });
     }
@@ -377,6 +383,72 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
               const SizedBox(height: 30),
               
+              // --- Top medicines + stock value ---
+              if (_topItems.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(Lang.t('rp_top'),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(height: 8),
+                      ..._topItems.take(5).map((t) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 3),
+                            child: Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                    child: Text('${t['name']}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis)),
+                                Text(
+                                    '${t['qty']} ${Lang.t('rp_sold')} \u2022 \u20B9${((t['total'] as num?)?.toDouble() ?? 0).toStringAsFixed(0)}',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          )),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(Lang.t('rp_stockval'),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                            '${Lang.t('rp_cost')}: \u20B9${(((_stockVal['cost_value'] as num?)?.toDouble()) ?? 0).toStringAsFixed(0)}'),
+                        Text(
+                            '${Lang.t('rp_mrp')}: \u20B9${(((_stockVal['mrp_value'] as num?)?.toDouble()) ?? 0).toStringAsFixed(0)}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
               // --- 6. ACTION BUTTON ---
               SizedBox(
                 width: double.infinity,
