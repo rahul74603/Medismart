@@ -216,7 +216,7 @@ class _StockScreenState extends State<StockScreen> {
     final bool isBatchAdd = item == null && prefill != null;
     final String title = item != null
         ? "Edit Medicine"
-        : (isBatchAdd ? "Add Batch - ${prefill!['name']}" : "Add New Medicine");
+        : (isBatchAdd ? "Add Batch - ${prefill['name']}" : "Add New Medicine");
 
     showDialog(
       context: context,
