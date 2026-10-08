@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../db_helper.dart';
 import '../../services/lang_service.dart';
+import '../../services/qr_medicine_parser.dart';
+import '../qr_scan_screen.dart';
 
 /// Quick "Add Stock" dialog used inside billing screens (retail + wholesale).
 /// Adds a new batch row for [name] WITHOUT leaving the bill.
@@ -75,6 +77,50 @@ class QuickAddStock {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      try {
+                        final raw = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const QrScanScreen()));
+                        if (raw == null || raw.toString().trim().isEmpty) {
+                          return;
+                        }
+                        final qr = QrMedicineParser.parse(raw.toString());
+                        int n = 0;
+                        if (qr.batch.isNotEmpty) {
+                          batchCtrl.text = qr.batch;
+                          n++;
+                        }
+                        if (qr.mrp.isNotEmpty) {
+                          mrpCtrl.text = qr.mrp;
+                          n++;
+                        }
+                        if (qr.expiry.isNotEmpty) {
+                          try {
+                            final parts = qr.expiry.split('/');
+                            final dt = DateTime(int.parse(parts[2]),
+                                int.parse(parts[1]), int.parse(parts[0]));
+                            setD(() => expiry = dt);
+                            n++;
+                          } catch (_) {}
+                        }
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(n > 0
+                                ? Lang.t('qr_filled')
+                                : Lang.t('qr_none')),
+                            backgroundColor:
+                                n > 0 ? Colors.green : Colors.orange));
+                      } catch (_) {}
+                    },
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: Text(Lang.t('qr_scan')),
+                  ),
+                ),
+                const SizedBox(height: 10),
                 Row(children: [
                   fld(batchCtrl, Lang.t('as_batch')),
                   const SizedBox(width: 8),

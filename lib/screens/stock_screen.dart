@@ -5,6 +5,8 @@ import '../db_helper.dart';
 import 'supplier_order_screen.dart';
 import '../services/staff_mode.dart';
 import '../services/lang_service.dart';
+import '../services/qr_medicine_parser.dart';
+import 'qr_scan_screen.dart';
 
 /// STOCK MANAGEMENT - grouped by product, batches inside (FEFO ordered).
 /// One product can have multiple batches; billing auto-picks earliest expiry.
@@ -245,6 +247,59 @@ class _StockScreenState extends State<StockScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          try {
+                            final raw = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const QrScanScreen()));
+                            if (raw == null ||
+                                raw.toString().trim().isEmpty) {
+                              return;
+                            }
+                            final qr =
+                                QrMedicineParser.parse(raw.toString());
+                            int n = 0;
+                            if (qr.name.isNotEmpty &&
+                                nameCtrl.text.trim().isEmpty) {
+                              nameCtrl.text = qr.name;
+                              n++;
+                            }
+                            if (qr.batch.isNotEmpty) {
+                              batchCtrl.text = qr.batch;
+                              n++;
+                            }
+                            if (qr.gtin.isNotEmpty) {
+                              barcodeCtrl.text = qr.gtin;
+                              n++;
+                            }
+                            if (qr.expiry.isNotEmpty) {
+                              expiryCtrl.text = qr.expiry;
+                              n++;
+                            }
+                            if (qr.mrp.isNotEmpty) {
+                              priceCtrl.text = qr.mrp;
+                              n++;
+                            }
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(n > 0
+                                        ? Lang.t('qr_filled')
+                                        : Lang.t('qr_none')),
+                                    backgroundColor: n > 0
+                                        ? Colors.green
+                                        : Colors.orange));
+                          } catch (_) {}
+                        },
+                        icon: const Icon(Icons.qr_code_scanner),
+                        label: Text(Lang.t('qr_scan')),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     _buildInput(nameCtrl, "Medicine Name", "e.g. Dolo 650", Icons.medical_services, readOnly: isBatchAdd),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(

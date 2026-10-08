@@ -378,6 +378,11 @@ class Lang {
       'as_save': 'Save Stock',
       'as_added': 'Stock added!',
       'as_fill': 'Fill batch + qty!',
+      'qr_scan': 'QR Scan',
+      'qr_title': 'Scan Medicine QR',
+      'qr_hint': 'Put the QR inside the box',
+      'qr_filled': 'QR details filled - check & Save!',
+      'qr_none': 'No details in QR - fill manually',
     },
     'hi': {
       // Dashboard
@@ -732,6 +737,11 @@ class Lang {
       'as_save': 'स्टॉक सेव करें',
       'as_added': 'स्टॉक जुड़ गया!',
       'as_fill': 'बैच + मात्रा भरो!',
+      'qr_scan': 'QR स्कैन',
+      'qr_title': 'दवाई का QR स्कैन करें',
+      'qr_hint': 'QR को डिब्बे के अंदर रखें',
+      'qr_filled': 'QR से डिटेल भरी - जांचकर Save करें!',
+      'qr_none': 'QR में डिटेल नहीं मिली - खुद भरें',
     },
   };
 }
