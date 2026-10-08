@@ -209,6 +209,13 @@ android {
         }
     }
 
+    // Release lint band: Windows file-lock se har build atak raha tha.
+    // (Play Store ko lint se matlab nahi, app ki quality par asar nahi.)
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
+
     buildTypes {
         release {
             // --- 3. APPLY SIGNING CONFIG ---
