@@ -9,11 +9,6 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'db_helper.dart';
 import 'services/license_service.dart';
-
-// Owner Tool (key generator) sirf owner wale APK me hota hai.
-// Customer APK me ye code judta hi nahi (tree-shaking).
-const bool kOwnerTool = bool.fromEnvironment('OWNER_TOOL', defaultValue: false);
-
 // Screens Imports
 import 'screens/billing_screen.dart';
 import 'screens/retail_billing_screen.dart';
@@ -31,6 +26,10 @@ import 'screens/alerts_screen.dart';
 import 'services/lang_service.dart';
 import 'services/staff_mode.dart';
 import 'screens/refill_reminder_screen.dart';
+
+// Owner Tool (key generator) sirf owner wale APK me hota hai.
+// Customer APK me ye code judta hi nahi (tree-shaking).
+const bool kOwnerTool = bool.fromEnvironment('OWNER_TOOL', defaultValue: false);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
