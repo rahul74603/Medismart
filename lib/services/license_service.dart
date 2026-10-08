@@ -1,18 +1,17 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// App licensing v2 - per-install unique code, owner activates via SMS/WhatsApp.
 /// - Code is unique per install (UUID in prefs, NOT the Android build id).
 /// - Key derivation is identical on user side and Owner Tool side (no PC needed).
-/// - SMS sending goes through native SmsManager (see MainActivity).
+/// - Code reaches the owner via SMS Intent / WhatsApp (no SMS permission,
+///   so Play Protect never blocks the install).
 class LicenseService {
   static const String ownerNumber = '6263396446'; // SMS (domestic dialling)
   static const String ownerWa = '916263396446'; // wa.me needs country code
   static const String _salt = 'RAHUL_MEDICAL_ERP_2024_SECRET';
-  static const MethodChannel _channel = MethodChannel('medismart/sms');
 
   /// Per-install unique ID (generated once, new on reinstall = reactivation).
   static Future<String> getInstallId() async {
@@ -77,16 +76,4 @@ class LicenseService {
     } catch (_) {}
   }
 
-  /// Background SMS via native SmsManager. True if accepted by the OS.
-  static Future<bool> sendCodeSms(String message) async {
-    try {
-      final msg =
-          message.length > 150 ? message.substring(0, 150) : message;
-      final ok = await _channel.invokeMethod<bool>(
-          'sendSms', {'number': ownerNumber, 'message': msg});
-      return ok == true;
-    } catch (_) {
-      return false;
-    }
-  }
 }

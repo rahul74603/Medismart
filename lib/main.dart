@@ -1,6 +1,5 @@
 import 'dart:convert'; 
 import 'package:flutter/services.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart'; 
 import 'package:flutter/material.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -140,17 +139,15 @@ class _LicenseCheckScreenState extends State<LicenseCheckScreen> {
     if (_smsSending) return;
     setState(() => _smsSending = true);
     try {
-      final st = await Permission.sms.request();
-      if (!st.isGranted) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(Lang.t('lic_noperm')),
-            backgroundColor: Colors.red));
-        return;
-      }
+      // SMS Intent: phone ka SMS app khulta hai, number+code pehle se likha.
+      // Koi permission nahi chahiye, Play Protect block nahi karta.
       final msg =
           'MediSmart naya device! Code: $_devCode ($_model). Key bhej do.';
-      final ok = await LicenseService.sendCodeSms(msg);
+      final url = Uri(
+          scheme: 'sms',
+          path: LicenseService.ownerNumber,
+          queryParameters: {'body': msg});
+      final ok = await launchUrl(url);
       if (!mounted) return;
       setState(() => _smsSent = ok);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
