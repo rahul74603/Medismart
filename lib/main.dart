@@ -10,6 +10,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'db_helper.dart';
 import 'services/license_service.dart';
 
+// Owner Tool (key generator) sirf owner wale APK me hota hai.
+// Customer APK me ye code judta hi nahi (tree-shaking).
+const bool kOwnerTool = bool.fromEnvironment('OWNER_TOOL', defaultValue: false);
+
 // Screens Imports
 import 'screens/billing_screen.dart';
 import 'screens/retail_billing_screen.dart';
@@ -256,7 +260,7 @@ class _LicenseCheckScreenState extends State<LicenseCheckScreen> {
           child: Column(
             children: [
               GestureDetector(
-                onTap: _ownerTap,
+                onTap: kOwnerTool ? _ownerTap : null,
                 child: const Icon(Icons.security,
                     size: 80, color: Colors.white),
               ),
