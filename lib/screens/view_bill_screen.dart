@@ -6,6 +6,8 @@ import '../pdf_helper.dart';
 import '../services/receipt_helper.dart';
 import '../services/whatsapp_helper.dart';
 import '../services/lang_service.dart';
+import 'retail_billing_screen.dart';
+import 'billing_screen.dart';
 
 class ViewBillScreen extends StatefulWidget {
   final Map<String, dynamic> billData;
@@ -47,6 +49,30 @@ class _ViewBillScreenState extends State<ViewBillScreen> {
     }
   }
 
+  void _editBill() {
+    final type = (widget.billData['bill_type'] ?? 'Wholesale').toString();
+    if (type == 'Retail') {
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => RetailBillingScreen(
+                    editBillData: widget.billData,
+                    editItems: List<Map<String, dynamic>>.from(widget.items),
+                  ))).then((_) {
+        if (mounted) Navigator.pop(context, true);
+      });
+    } else {
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => BillingScreen(
+                  editBillData: widget.billData,
+                  editItems: widget.items))).then((_) {
+        if (mounted) Navigator.pop(context, true);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -64,6 +90,11 @@ class _ViewBillScreenState extends State<ViewBillScreen> {
             icon: const Icon(Icons.receipt_long),
             tooltip: Lang.t('vb_print'),
             onPressed: _printReceipt,
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit),
+            tooltip: Lang.t('vb_edit'),
+            onPressed: _editBill,
           ),
         ],
       ),

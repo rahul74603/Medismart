@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../db_helper.dart';
+import 'widgets/quick_add_stock.dart';
 import '../services/receipt_helper.dart';
 import '../services/app_prefs.dart';
 import '../services/whatsapp_helper.dart';
 import '../services/lang_service.dart';
 
 /// FAST RETAIL (counter) BILLING
-/// Walk-in customer -> search -> tap -> qty -> print. No GSTIN/address needed.
+/// Walk-in customer -> search -> tap -> qty -> print. Address supported (retail = B2C, no GSTIN).
 /// Rate defaults to MRP. Stock is picked batch-wise, earliest-expiry-first (FEFO).
 class RetailBillingScreen extends StatefulWidget {
   final Map<String, dynamic>? editBillData;
@@ -35,7 +36,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
   final TextEditingController _nameCtrl = TextEditingController();
   final TextEditingController _mobileCtrl = TextEditingController();
   final TextEditingController _doctorCtrl = TextEditingController();
-  final TextEditingController _gstinCtrl = TextEditingController();
+  final TextEditingController _addressCtrl = TextEditingController();
   final TextEditingController _searchCtrl = TextEditingController();
   final TextEditingController _discountCtrl = TextEditingController(text: "0");
 
@@ -69,7 +70,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
     _nameCtrl.dispose();
     _mobileCtrl.dispose();
     _doctorCtrl.dispose();
-    _gstinCtrl.dispose();
+    _addressCtrl.dispose();
     _searchCtrl.dispose();
     _discountCtrl.dispose();
     super.dispose();
@@ -85,7 +86,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
       _mobileCtrl.text = widget.editBillData!['mobile'] ?? '';
       _nameCtrl.text = (widget.editBillData!['customer_name'] ?? '').toString();
       _doctorCtrl.text = (widget.editBillData!['doctor_name'] ?? '').toString();
-      _gstinCtrl.text = (widget.editBillData!['customer_gstin'] ?? '').toString();
+      _addressCtrl.text = (widget.editBillData!['customer_address'] ?? '').toString();
       try {
         _billDate = DateFormat('dd/MM/yyyy HH:mm').parse(widget.editBillData!['date']);
       } catch (_) {
@@ -203,6 +204,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
     if (cust != null && mounted) {
       setState(() {
         _nameCtrl.text = (cust['name'] ?? '').toString();
+        _addressCtrl.text = (cust['address'] ?? '').toString();
       });
       double due = ((cust['total_due'] as num?)?.toDouble()) ?? 0.0;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -303,7 +305,17 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
   }
 
   /// Instant add with FEFO batch + MRP rate (no dialog).
-  void _expressAdd(Map<String, dynamic> product, {int qty = 1, bool silent = false}) {
+  /// Light refresh of product list (keeps cart + invoice intact).
+  Future<void> _refreshProducts() async {
+    final rows = await DBHelper.getItems();
+    if (!mounted) return;
+    setState(() {
+      _products = _groupProducts(rows);
+    });
+    _runFilter(_searchCtrl.text.trim());
+  }
+
+  Future<void> _expressAdd(Map<String, dynamic> product, {int qty = 1, bool silent = false}) async {
     final List<Map<String, dynamic>> batches =
         List<Map<String, dynamic>>.from(product['batches'] as List);
     int inStock = batches.fold(
@@ -315,6 +327,24 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
       }
     }
     int available = inStock - inCart;
+    // Short stock -> inline Add Stock (skip for silent batch adds)
+    if (!silent && (available <= 0 || qty > available)) {
+      final need = qty > available ? qty : 1;
+      final ok = await QuickAddStock.show(context,
+          name: (product['name'] ?? '').toString(),
+          prefill: batches.isNotEmpty ? batches.first : null,
+          needQty: need,
+          inStock: available < 0 ? 0 : available);
+      if (ok == true && mounted) {
+        await _refreshProducts();
+        Map<String, dynamic>? fp;
+        try {
+          fp = _products.firstWhere((e) => e['name'] == product['name']);
+        } catch (_) {}
+        if (fp != null) await _expressAdd(fp, qty: need);
+      }
+      return;
+    }
     if (available <= 0) {
       if (!silent && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -410,7 +440,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
     final List<Map<String, dynamic>> subs =
         await DBHelper.getSubstitutes((product['name'] ?? '').toString());
     if (!mounted) return;
-    final List<Map<String, dynamic>> batches =
+    List<Map<String, dynamic>> batches =
         List<Map<String, dynamic>>.from(product['batches'] as List);
     int inStock = batches.fold(
         0, (s, b) => s + ((((b['quantity'] as num?)?.toInt()) ?? 0)));
@@ -423,8 +453,20 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
     }
     int available = inStock - inCart;
     if (available <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Out of stock!"), backgroundColor: Colors.red));
+      final ok = await QuickAddStock.show(context,
+          name: (product['name'] ?? '').toString(),
+          prefill: batches.isNotEmpty ? batches.first : null,
+          needQty: 1,
+          inStock: 0);
+      if (ok == true && mounted) {
+        await _refreshProducts();
+        if (!mounted) return;
+        Map<String, dynamic>? fp;
+        try {
+          fp = _products.firstWhere((e) => e['name'] == product['name']);
+        } catch (_) {}
+        if (fp != null) _showQtyDialog(fp);
+      }
       return;
     }
 
@@ -452,7 +494,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(product['name'],
+              Text((product['name'] ?? '').toString().toUpperCase(),
                   style: const TextStyle(
                       fontWeight: FontWeight.bold, fontSize: 17)),
               Text("MRP ₹$mrp | Available: $available",
@@ -555,7 +597,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                                     MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
-                                    child: Text(s['name'],
+                                    child: Text((s['name'] ?? '').toString().toUpperCase(),
                                         style: const TextStyle(
                                             fontSize: 13)),
                                   ),
@@ -580,15 +622,67 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
             TextButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: const Text("Cancel")),
+            TextButton(
+              onPressed: () async {
+                final ok = await QuickAddStock.show(context,
+                    name: (product['name'] ?? '').toString(),
+                    prefill: batches.isNotEmpty ? batches.first : null,
+                    needQty: 0,
+                    inStock: available < 0 ? 0 : available);
+                if (ok == true && mounted) {
+                  await _refreshProducts();
+                  final rows = await DBHelper.getItems();
+                  batches = rows
+                      .where((r) => r['name'] == product['name'])
+                      .toList();
+                  int cartNow = 0;
+                  for (var l in _cart) {
+                    if (l['name'] == product['name']) {
+                      cartNow += ((l['sold_qty'] as num?)?.toInt() ?? 0);
+                    }
+                  }
+                  available = batches.fold(
+                          0,
+                          (s, b) =>
+                              s +
+                              ((((b['quantity'] as num?)?.toInt()) ?? 0))) -
+                      cartNow;
+                  setD(() {});
+                }
+              },
+              child: Text('+ ${Lang.t('as_title')}'),
+            ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 int qty = int.tryParse(qtyCtrl.text) ?? 0;
                 double rate = double.tryParse(rateCtrl.text) ?? 0.0;
                 if (qty <= 0) return;
                 if (qty > available) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text("Only $available available!"),
-                      backgroundColor: Colors.red));
+                  final ok = await QuickAddStock.show(context,
+                      name: (product['name'] ?? '').toString(),
+                      prefill: batches.isNotEmpty ? batches.first : null,
+                      needQty: qty,
+                      inStock: available < 0 ? 0 : available);
+                  if (ok == true && mounted) {
+                    await _refreshProducts();
+                    final rows = await DBHelper.getItems();
+                    batches = rows
+                        .where((r) => r['name'] == product['name'])
+                        .toList();
+                    int cartNow = 0;
+                    for (var l in _cart) {
+                      if (l['name'] == product['name']) {
+                        cartNow += ((l['sold_qty'] as num?)?.toInt() ?? 0);
+                      }
+                    }
+                    available = batches.fold(
+                            0,
+                            (s, b) =>
+                                s +
+                                ((((b['quantity'] as num?)?.toInt()) ?? 0))) -
+                        cartNow;
+                    setD(() {});
+                  }
                   return;
                 }
                 final alloc = _allocateFEFO(batches, qty);
@@ -761,8 +855,8 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
         'net_amount': c['round'],
         'payment_mode': _payMode,
         'bill_type': 'Retail',
-        'customer_gstin': _gstinCtrl.text.trim(),
-        'customer_address': '',
+        'customer_gstin': '',
+        'customer_address': _addressCtrl.text.trim(),
       };
 
       List<Map<String, dynamic>> itemsForDB = _cart
@@ -833,7 +927,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
           _nameCtrl.clear();
           _mobileCtrl.clear();
           _doctorCtrl.clear();
-          _gstinCtrl.clear();
+          _addressCtrl.clear();
           _lastBillItems = [];
           _lastBillNo = '';
           _searchCtrl.clear();
@@ -992,7 +1086,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
               ],
             ),
           ),
-          // Doctor + GSTIN (optional)
+          // Doctor + Address (optional)
           Container(
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
@@ -1016,10 +1110,10 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                 Expanded(
                   flex: 2,
                   child: TextField(
-                    controller: _gstinCtrl,
+                    controller: _addressCtrl,
                     textCapitalization: TextCapitalization.characters,
                     decoration: InputDecoration(
-                      hintText: Lang.t('r_gstin'),
+                      hintText: Lang.t('r_address'),
                       prefixIcon:
                           const Icon(Icons.badge, size: 18, color: Colors.teal),
                       isDense: true,
@@ -1126,6 +1220,12 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                       final p = _filteredProducts[i];
                       int qty = (p['total_qty'] as num).toInt();
                       bool out = qty <= 0;
+                      int inCart = 0;
+                      for (var l in _cart) {
+                        if (l['name'] == p['name']) {
+                          inCart += ((l['sold_qty'] as num?)?.toInt() ?? 0);
+                        }
+                      }
                       return Card(
                         margin: const EdgeInsets.only(bottom: 6),
                         child: ListTile(
@@ -1140,7 +1240,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                                     fontWeight: FontWeight.bold,
                                     color: out ? Colors.red : Colors.teal)),
                           ),
-                          title: Text(p['name'],
+                          title: Text((p['name'] ?? '').toString().toUpperCase(),
                               style: const TextStyle(
                                   fontWeight: FontWeight.bold, fontSize: 14)),
                           subtitle: (p['chemical'] as String).isNotEmpty
@@ -1152,6 +1252,21 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              if (inCart > 0)
+                                Container(
+                                  margin: const EdgeInsets.only(right: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.teal,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text('×$inCart',
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12)),
+                                ),
                               Text(
                                   "₹${((p['mrp'] as num).toDouble()).toStringAsFixed(1)}",
                                   style: const TextStyle(
@@ -1239,7 +1354,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(l['name'],
+                                      Text((l['name'] ?? '').toString().toUpperCase(),
                                           style: const TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 13)),

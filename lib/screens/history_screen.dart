@@ -109,7 +109,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final items = await DBHelper.getBillItems(bill['id']);
     Navigator.push(context, MaterialPageRoute(
       builder: (context) => ViewBillScreen(billData: bill, items: items)
-    ));
+    )).then((_) => _loadBills());
   }
 
   void _editBill(Map<String, dynamic> bill) async {

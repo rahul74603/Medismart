@@ -117,8 +117,8 @@ class PDFHelper {
                     // 👇👇 DOCTOR NAME ADDED HERE 👇👇
                     pw.Text("Dr. Name: ${billData['doctor_name'] ?? 'Self'}", style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)), 
                     
-                    if(billData['customer_address'] != null) pw.Text("Addr: ${billData['customer_address']}", style: const pw.TextStyle(fontSize: 9)),
-                    if(billData['customer_gstin'] != null) pw.Text("GSTIN: ${billData['customer_gstin']}", style: const pw.TextStyle(fontSize: 9)),
+                    if((billData['customer_address'] ?? '').toString().trim().isNotEmpty) pw.Text("Addr: ${billData['customer_address']}", style: const pw.TextStyle(fontSize: 9)),
+                    if((billData['customer_gstin'] ?? '').toString().trim().isNotEmpty) pw.Text("GSTIN: ${billData['customer_gstin']}", style: const pw.TextStyle(fontSize: 9)),
                   ])),
                 ],
               ),
@@ -150,7 +150,7 @@ class PDFHelper {
                 if(free > 0) qtyText += "+$free";
 
                 return [
-                  (item['name'] ?? 'Item').toString(),
+                  (item['name'] ?? item['item_name'] ?? 'Item').toString().toUpperCase(),
                   item['batch'] ?? '-',
                   item['expiryDate'] ?? item['exp_date'] ?? '-',
                   item['type'] ?? item['item_type'] ?? '-',

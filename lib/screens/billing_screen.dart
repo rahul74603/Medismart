@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../db_helper.dart';
+import 'widgets/quick_add_stock.dart';
 import 'view_bill_screen.dart'; // Ensure ViewBillScreen is imported
 import '../services/lang_service.dart';
 
@@ -197,6 +198,14 @@ class _BillingScreenState extends State<BillingScreen> {
     }
   }
 
+  /// Light refresh of item list (keeps cart + invoice intact).
+  Future<void> _refreshItems() async {
+    final items = await DBHelper.getItems();
+    if (!mounted) return;
+    setState(() => _allItems = items);
+    _runFilter(_searchCtrl.text.trim());
+  }
+
   void _addToCartDialog(Map<String, dynamic> item) async {
     final List<Map<String, dynamic>> subs =
         await DBHelper.getSubstitutes((item['name'] ?? '').toString());
@@ -233,7 +242,7 @@ class _BillingScreenState extends State<BillingScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text((item['name'] ?? '').toString().toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)),
             Text("MRP: ₹$mrp | Stock: $availableStock", style: const TextStyle(fontSize: 12, color: Colors.grey)),
           ],
         ),
@@ -306,7 +315,7 @@ class _BillingScreenState extends State<BillingScreen> {
                                           MainAxisAlignment.spaceBetween,
                                       children: [
                                         Expanded(
-                                          child: Text(s['name'],
+                                          child: Text((s['name'] ?? '').toString().toUpperCase(),
                                               style: const TextStyle(
                                                   fontSize: 13)),
                                         ),
@@ -340,8 +349,32 @@ class _BillingScreenState extends State<BillingScreen> {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: Text(Lang.t('cancel'))),
+          TextButton(
+            onPressed: () async {
+              final liveAvail =
+                  batches.fold(0, (s, b) => s + _availFor(b));
+              final ok = await QuickAddStock.show(context,
+                  name: (item['name'] ?? '').toString(),
+                  prefill: item,
+                  needQty: 0,
+                  inStock: liveAvail < 0 ? 0 : liveAvail);
+              if (ok == true && mounted) {
+                await _refreshItems();
+                batches = DBHelper.sortBatchesFEFO(_allItems
+                    .where((b) =>
+                        b['name'] == item['name'] && _availFor(b) > 0)
+                    .toList());
+                if (batches.isEmpty) batches = [item];
+                selectedBatch = batches.firstWhere(
+                    (b) => b['id'] == selectedBatch['id'],
+                    orElse: () => batches.first);
+                setD(() {});
+              }
+            },
+            child: Text('+ ${Lang.t('as_title')}'),
+          ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               int qty = int.tryParse(qtyCtrl.text) ?? 0;
               int free = int.tryParse(freeQtyCtrl.text) ?? 0;
               double rate = double.tryParse(rateCtrl.text) ?? 0.0;
@@ -367,8 +400,23 @@ class _BillingScreenState extends State<BillingScreen> {
                 }
               }
               if ((remQty + remFree) > 0) {
-                ScaffoldMessenger.of(context).showSnackBar( SnackBar(
-                    content: Text(Lang.t('w_nostock')), backgroundColor: Colors.red));
+                final ok = await QuickAddStock.show(context,
+                    name: (item['name'] ?? '').toString(),
+                    prefill: item,
+                    needQty: remQty + remFree,
+                    inStock: 0);
+                if (ok == true && mounted) {
+                  await _refreshItems();
+                  batches = DBHelper.sortBatchesFEFO(_allItems
+                      .where((b) =>
+                          b['name'] == item['name'] && _availFor(b) > 0)
+                      .toList());
+                  if (batches.isEmpty) batches = [item];
+                  selectedBatch = batches.firstWhere(
+                      (b) => b['id'] == selectedBatch['id'],
+                      orElse: () => batches.first);
+                  setD(() {});
+                }
                 return;
               }
 
@@ -431,7 +479,7 @@ class _BillingScreenState extends State<BillingScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text((item['name'] ?? '').toString().toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)),
             Text("MRP: ₹${item['mrp']}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
           ],
         ),
@@ -962,7 +1010,7 @@ class _BillingScreenState extends State<BillingScreen> {
                                 ),
                                 child: Icon(Icons.medication, color: Colors.orange.shade700, size: 20),
                               ),
-                              title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              title: Text((item['name'] ?? '').toString().toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                               subtitle: Row(
                                 children: [
                                   Container(
@@ -1072,7 +1120,7 @@ class _BillingScreenState extends State<BillingScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1A1A1A))),
+                                      Text((item['name'] ?? '').toString().toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1A1A1A))),
                                       const SizedBox(height: 4),
                                       Row(
                                         children: [

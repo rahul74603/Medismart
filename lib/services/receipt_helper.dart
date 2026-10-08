@@ -166,6 +166,8 @@ class ReceiptHelper {
             kv('Mobile:', _s(billData['mobile'])),
           if (_s(billData['doctor_name']).isNotEmpty)
             kv('Doctor:', _s(billData['doctor_name'])),
+          if (_s(billData['customer_address']).isNotEmpty)
+            kv('Addr:', _s(billData['customer_address'])),
           if (_s(billData['customer_gstin']).isNotEmpty)
             kv('GSTIN:', _s(billData['customer_gstin'])),
           kv('Pay Mode:', _s(billData['payment_mode'])),
@@ -193,7 +195,7 @@ class ReceiptHelper {
           ]),
           divider(),
           ...items.map((it) {
-            final name = _s(it['name'] ?? it['item_name']);
+            final name = _s(it['name'] ?? it['item_name']).toUpperCase();
             final qty = _safeInt(it['sold_qty'] ?? it['qty']);
             final free = _safeInt(it['free_qty']);
             final rate = _safeVal(it['price'] ?? it['rate']);
@@ -369,7 +371,7 @@ class ReceiptHelper {
               ]),
           divider(),
           ...items.map((it) {
-            final name = _s(it['name'] ?? it['item_name']);
+            final name = _s(it['name'] ?? it['item_name']).toUpperCase();
             final qty = _safeInt(it['qty']);
             final rate = _safeVal(it['rate']);
             final total = _safeVal(it['total']);
