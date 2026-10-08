@@ -315,6 +315,36 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
     _runFilter(_searchCtrl.text.trim());
   }
 
+  /// Same batch + same rate = purani line me qty jodo (nayi entry NAHI).
+  /// Alag batch ya alag rate = alag line (medical billing me sahi hai).
+  void _mergeRetailLine(Map<String, dynamic> row, int take, double rate) {
+    final int rId = ((row['id'] as num?)?.toInt()) ?? -2;
+    final int exIdx = _cart.indexWhere((c) =>
+        (((c['id'] as num?)?.toInt()) ?? -1) == rId &&
+        (((((c['price'] as num?)?.toDouble()) ?? -1) - rate).abs() < 0.001));
+    if (exIdx >= 0) {
+      final int q = ((_cart[exIdx]['sold_qty'] as num).toInt()) + take;
+      _cart[exIdx]['sold_qty'] = q;
+      _cart[exIdx]['total'] = q * rate;
+    } else {
+      _cart.add({
+        'id': row['id'],
+        'name': row['name'],
+        'batch': row['batch'] ?? '',
+        'mrp': (((row['price'] as num?)?.toDouble()) ?? rate),
+        'price': rate,
+        'cost': (((row['wholesale_price'] as num?)?.toDouble()) ?? 0.0),
+        'gst_percent': (((row['gst_percent'] as num?)?.toInt()) ?? 0),
+        'sold_qty': take,
+        'free_qty': 0,
+        'max_qty': (((row['quantity'] as num?)?.toInt()) ?? 0),
+        'total': take * rate,
+        'expiryDate': row['expiryDate'] ?? '',
+        'type': row['type'] ?? '',
+      });
+    }
+  }
+
   Future<void> _expressAdd(Map<String, dynamic> product, {int qty = 1, bool silent = false}) async {
     final List<Map<String, dynamic>> batches =
         List<Map<String, dynamic>>.from(product['batches'] as List);
@@ -366,21 +396,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
       for (var a in alloc) {
         final row = a['row'] as Map<String, dynamic>;
         final take = a['take'] as int;
-        _cart.add({
-          'id': row['id'],
-          'name': row['name'],
-          'batch': row['batch'] ?? '',
-          'mrp': (((row['price'] as num?)?.toDouble()) ?? rate),
-          'price': rate,
-          'cost': (((row['wholesale_price'] as num?)?.toDouble()) ?? 0.0),
-          'gst_percent': (((row['gst_percent'] as num?)?.toInt()) ?? 0),
-          'sold_qty': take,
-          'free_qty': 0,
-          'max_qty': (((row['quantity'] as num?)?.toInt()) ?? 0),
-          'total': take * rate,
-          'expiryDate': row['expiryDate'] ?? '',
-          'type': row['type'] ?? '',
-        });
+        _mergeRetailLine(row, take, rate);
       }
       _searchCtrl.clear();
       _filteredProducts = _products;
@@ -697,22 +713,7 @@ class _RetailBillingScreenState extends State<RetailBillingScreen> {
                   for (var a in alloc) {
                     final row = a['row'] as Map<String, dynamic>;
                     final take = a['take'] as int;
-                    _cart.add({
-                      'id': row['id'],
-                      'name': row['name'],
-                      'batch': row['batch'] ?? '',
-                      'mrp': (((row['price'] as num?)?.toDouble()) ?? rate),
-                      'price': rate,
-                      'cost': (((row['wholesale_price'] as num?)?.toDouble()) ?? 0.0),
-                      'gst_percent':
-                          (((row['gst_percent'] as num?)?.toInt()) ?? 0),
-                      'sold_qty': take,
-                      'free_qty': 0,
-                      'max_qty': (((row['quantity'] as num?)?.toInt()) ?? 0),
-                      'total': take * rate,
-                      'expiryDate': row['expiryDate'] ?? '',
-                      'type': row['type'] ?? '',
-                    });
+                    _mergeRetailLine(row, take, rate);
                   }
                   _searchCtrl.clear();
                   _filteredProducts = _products;

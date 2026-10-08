@@ -207,12 +207,12 @@ class PDFHelper {
               pw.SizedBox(height: 12),
               pw.Center(
                 child: qrImg != null
-                    ? pw.Image(qrImg, width: 110, height: 110)
+                    ? pw.Image(qrImg, width: 150, height: 150)
                     : pw.BarcodeWidget(
                         barcode: pw.Barcode.qrCode(),
                         data: 'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(shopName)}&am=${netAmountVal.toStringAsFixed(2)}&cu=INR',
-                        width: 110,
-                        height: 110,
+                        width: 150,
+                        height: 150,
                       ),
               ),
               pw.SizedBox(height: 4),
