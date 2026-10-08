@@ -14,7 +14,7 @@ class QrScanScreen extends StatefulWidget {
   const QrScanScreen({super.key});
 
   @override
-  State<QrScanScreenState> createState() => _QrScanScreenState();
+  State<QrScanScreen> createState() => _QrScanScreenState();
 }
 
 class _QrScanScreenState extends State<QrScanScreen>
@@ -180,7 +180,7 @@ class _QrScanScreenState extends State<QrScanScreen>
               controller: _controller!,
               onDetect: _onDetect,
               fit: BoxFit.cover,
-              errorBuilder: (ctx, err) => _cameraBlocked(),
+              errorBuilder: (ctx, err, child) => _cameraBlocked(),
             )
           else
             _cameraBlocked(),
