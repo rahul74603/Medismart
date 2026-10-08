@@ -33,6 +33,7 @@ class QrMedicineParser {
       if (d.isEmpty) _parseFlatGS1(text, d);
       if (d.isEmpty) _parseUrl(text, d);
       _parseKeyValues(text, d); // fills gaps in any format
+      _parseLoosePairs(text, d); // KEY value without colon
       _parseFreeText(text, d); // fills remaining gaps
       d.expiry = _normDate(d.expiry);
       d.mfg = _normDate(d.mfg);
@@ -119,6 +120,21 @@ class QrMedicineParser {
     } catch (_) {}
   }
 
+  // ---------- loose "KEY value" pairs without colon (comma/pipe/semicolon/newline separated) ----------
+  static void _parseLoosePairs(String text, QrMedicineData d) {
+    try {
+      final parts = text.split(RegExp(r'[\n;,|]'));
+      for (final p in parts) {
+        final m = RegExp(
+                r'^\s*(gtin|ean|batch|bt|lot|exp|expiry|mfg|mfd|mrp|rs|name|brand|drug)\b\s*[:\-]?\s*(.+?)\s*\$',
+                caseSensitive: false)
+            .firstMatch(p);
+        if (m == null) continue;
+        _assignKey(m.group(1)!, m.group(2)!, d);
+      }
+    } catch (_) {}
+  }
+
   static void _assignKey(String key, String val, QrMedicineData d) {
     try {
       final k = key.toLowerCase().replaceAll(RegExp(r'[\s._\-]'), '');
@@ -130,13 +146,16 @@ class QrMedicineParser {
       } else if ({'batch', 'batchno', 'batchnumber', 'bt', 'bno', 'lot', 'lotno'}
           .contains(k)) {
         if (d.batch.isEmpty) d.batch = v;
-      } else if ({'exp', 'expiry', 'expdate', 'expdt', 'expirydate', 'ed', 'doe'}
-          .contains(k)) {
+      } else if ({
+        'exp', 'expiry', 'expdate', 'expdt', 'expirydate', 'ed', 'doe',
+        'usebefore', 'useby', 'bestbefore', 'bestusebefore', 'bestuseby',
+        'validtill', 'validity', 'validupto', 'expireson'
+      }.contains(k)) {
         if (d.expiry.isEmpty) d.expiry = v;
-      } else if ({'mfg', 'mfgdate', 'mfd', 'mfddate', 'manufacturingdate', 'dom', 'mdate'}
+      } else if ({'mfg', 'mfgdate', 'mfd', 'mfddate', 'manufacturingdate', 'dom', 'mdate', 'packedon', 'dateofmanufacture', 'packagingdate'}
           .contains(k)) {
         if (d.mfg.isEmpty) d.mfg = v;
-      } else if ({'mrp', 'price', 'rate', 'amount', 'maxretailprice'}.contains(k)) {
+      } else if ({'mrp', 'price', 'rate', 'amount', 'maxretailprice', 'rs'}.contains(k)) {
         if (d.mrp.isEmpty) d.mrp = v;
       } else if ({'name', 'product', 'productname', 'brand', 'brandname', 'drug', 'drugname', 'item', 'itemname', 'medicine', 'medicinename', 'pname'}
           .contains(k)) {
@@ -150,14 +169,14 @@ class QrMedicineParser {
     try {
       if (d.batch.isEmpty) {
         final m = RegExp(
-                r'batch(?:\s*(?:no\.?|number))?\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9\-\/]{1,19})',
+                r'(?:batch(?:\s*(?:no\.?|number))?|lot(?:\s*no\.?)?|\bbt\b)\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9\-\/]{1,19})',
                 caseSensitive: false)
             .firstMatch(text);
         if (m != null) d.batch = m.group(1)!.trim();
       }
       if (d.expiry.isEmpty) {
         final m = RegExp(
-                r'(?:exp(?:iry|iry|iry\s*date)?|expiry)\s*(?:date)?\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{2,4}(?:[\/\-\.]\d{2,4})?)',
+                r'(?:exp(?:iry)?|expiry|use\s*before|best\s*(?:use\s*)?before|valid(?:ity|\s*till|\s*upto))\s*(?:date)?\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{2,4}(?:[\/\-\.]\d{2,4})?)',
                 caseSensitive: false)
             .firstMatch(text);
         if (m != null) d.expiry = m.group(1)!.trim();
@@ -165,14 +184,14 @@ class QrMedicineParser {
       if (d.expiry.isEmpty) {
         // month-name style: EXP JAN-2027 / Expiry: Feb 26
         final m = RegExp(
-                r'(?:exp|expiry)[^A-Za-z0-9]{0,8}((?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*[\s\-\.\/]+\d{2,4})',
+                r'(?:exp(?:iry)?|use\s*before|best\s*(?:use\s*)?before|valid(?:ity|\s*till)).{0,12}?((?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*[\s\-\.\/]+\d{2,4})',
                 caseSensitive: false)
             .firstMatch(text);
         if (m != null) d.expiry = m.group(1)!.trim();
       }
       if (d.mfg.isEmpty) {
         final m = RegExp(
-                r'mfg(?:\s*date)?\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{2,4}(?:[\/\-\.]\d{2,4})?)',
+                r'(?:mfg|mfd|packed(?:\s*on)?)(?:\s*date)?\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{2,4}(?:[\/\-\.]\d{2,4})?)',
                 caseSensitive: false)
             .firstMatch(text);
         if (m != null) d.mfg = m.group(1)!.trim();

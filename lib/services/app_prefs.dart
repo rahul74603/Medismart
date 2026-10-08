@@ -10,6 +10,7 @@ class AppPrefs {
   static const _kUpiId = 'shop_upi_id'; // UPI id for QR on receipt
   static const _kQrPath = 'shop_qr_path'; // uploaded QR image path
   static const _kLastAutoBackup = 'last_auto_backup'; // yyyy-MM-dd
+  static const _kGemini = 'gemini_api_key'; // user's own key, AI QR fallback
   static const _kLastBackupPath = 'last_backup_path'; // full file path
   static const _kLastBackupTime = 'last_backup_time'; // display string
 
@@ -56,6 +57,16 @@ class AppPrefs {
   static Future<String> getUpiId() async {
     final p = await SharedPreferences.getInstance();
     return p.getString(_kUpiId) ?? '';
+  }
+
+  static Future<String> getGeminiKey() async {
+    final p = await SharedPreferences.getInstance();
+    return p.getString(_kGemini) ?? '';
+  }
+
+  static Future<void> setGeminiKey(String v) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_kGemini, v);
   }
 
   static Future<void> setUpiId(String v) async {

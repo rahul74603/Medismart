@@ -6,6 +6,7 @@ import 'supplier_order_screen.dart';
 import '../services/staff_mode.dart';
 import '../services/lang_service.dart';
 import '../services/qr_medicine_parser.dart';
+import '../services/gemini_service.dart';
 import 'qr_scan_screen.dart';
 
 /// STOCK MANAGEMENT - grouped by product, batches inside (FEFO ordered).
@@ -263,6 +264,7 @@ class _StockScreenState extends State<StockScreen> {
                             final qr =
                                 QrMedicineParser.parse(raw.toString());
                             int n = 0;
+                            bool aiUsed = false;
                             if (qr.name.isNotEmpty &&
                                 nameCtrl.text.trim().isEmpty) {
                               nameCtrl.text = qr.name;
@@ -284,11 +286,40 @@ class _StockScreenState extends State<StockScreen> {
                               priceCtrl.text = qr.mrp;
                               n++;
                             }
+                            if (n == 0 && mounted) {
+                              final ai =
+                                  await GeminiService.tryQrWithLoader(
+                                      context, raw.toString());
+                              if (ai != null) {
+                                if (ai.name.isNotEmpty &&
+                                    nameCtrl.text.trim().isEmpty) {
+                                  nameCtrl.text = ai.name;
+                                  n++;
+                                }
+                                if (ai.batch.isNotEmpty) {
+                                  batchCtrl.text = ai.batch;
+                                  n++;
+                                }
+                                if (ai.gtin.isNotEmpty) {
+                                  barcodeCtrl.text = ai.gtin;
+                                  n++;
+                                }
+                                if (ai.expiry.isNotEmpty) {
+                                  expiryCtrl.text = ai.expiry;
+                                  n++;
+                                }
+                                if (ai.mrp.isNotEmpty) {
+                                  priceCtrl.text = ai.mrp;
+                                  n++;
+                                }
+                                aiUsed = n > 0;
+                              }
+                            }
                             if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                     content: Text(n > 0
-                                        ? Lang.t('qr_filled')
+                                        ? Lang.t(aiUsed ? 'qr_ai' : 'qr_filled')
                                         : Lang.t('qr_none')),
                                     backgroundColor: n > 0
                                         ? Colors.green

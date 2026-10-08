@@ -59,5 +59,40 @@ void main() {
       expect(d.batch, 'OK1');
       expect(d.expiry, '');
     });
+    test('use before + d-m-yyyy', () {
+      final d = QrMedicineParser.parse('Use Before: 1-11-2026');
+      expect(d.expiry, '01/11/2026');
+    });
+
+    test('best before month-name + lot batch', () {
+      final d = QrMedicineParser.parse('Best Before: JAN-2027\nLot: Q12');
+      expect(d.expiry, '01/01/2027');
+      expect(d.batch, 'Q12');
+    });
+
+    test('exp with day month-name year', () {
+      final d = QrMedicineParser.parse('EXP: 1 Nov 2026');
+      expect(d.expiry, '01/11/2026');
+    });
+
+    test('full month name lowercase', () {
+      final d = QrMedicineParser.parse('use before 1 november 2026');
+      expect(d.expiry, '01/11/2026');
+    });
+
+    test('loose comma pairs without colon', () {
+      final d = QrMedicineParser.parse(
+          'Crocin Advance, Batch AB1, Exp 12/27, MRP 50');
+      expect(d.batch, 'AB1');
+      expect(d.expiry, '01/12/2027');
+      expect(d.mrp, '50');
+    });
+
+    test('valid till + packed mfg', () {
+      final d = QrMedicineParser.parse(
+          'Valid Till 31/12/2026\nPacked On: 01/2024');
+      expect(d.expiry, '31/12/2026');
+      expect(d.mfg, '01/01/2024');
+    });
   });
 }

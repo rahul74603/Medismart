@@ -23,6 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _dlCtrl = TextEditingController(); 
   final _termsCtrl = TextEditingController();
   final _upiCtrl = TextEditingController();
+  final _geminiCtrl = TextEditingController();
   String _qrPath = '';
 
   int _receiptWidth = 80;
@@ -42,6 +43,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _dlCtrl.dispose();
     _termsCtrl.dispose();
     _upiCtrl.dispose();
+    _geminiCtrl.dispose();
     super.dispose();
   }
 
@@ -69,6 +71,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final ex = await AppPrefs.getExpressAdd();
       final wa = await AppPrefs.getAskWhatsApp();
       final upi = await AppPrefs.getUpiId();
+      final gem = await AppPrefs.getGeminiKey();
       final qr = await AppPrefs.getQrPath();
       final lastBk = await AppPrefs.getLastBackupLabel();
       if (mounted) {
@@ -78,6 +81,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _express = ex;
           _askWa = wa;
           _upiCtrl.text = upi;
+          _geminiCtrl.text = gem;
           _qrPath = qr;
           _lastBackup = lastBk;
         });
@@ -167,7 +171,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       'gstin': _gstCtrl.text,
       'dl_no': _dlCtrl.text, 
       'terms': _termsCtrl.text
-    }, where: "id = ?", whereArgs: [1]); 
+    }, where: "id = ?", whereArgs: [1]);
+    await AppPrefs.setGeminiKey(_geminiCtrl.text.trim()); 
 
     var check = await db.query('settings');
     if (check.isEmpty) {
@@ -287,6 +292,7 @@ void _restoreData() async {
             _buildTextField("Drug License No. (D.L.)", _dlCtrl, Icons.verified_user),
 
             _buildTextField("GSTIN (Optional)", _gstCtrl, Icons.receipt_long),
+            _buildTextField(Lang.t('gem_key'), _geminiCtrl, Icons.smart_toy),
             
             const SizedBox(height: 20),
             Text(Lang.t('s_terms_h'), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal, fontSize: 16)),

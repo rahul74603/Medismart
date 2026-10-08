@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../db_helper.dart';
 import '../../services/lang_service.dart';
 import '../../services/qr_medicine_parser.dart';
+import '../../services/gemini_service.dart';
 import '../qr_scan_screen.dart';
 
 /// Quick "Add Stock" dialog used inside billing screens (retail + wholesale).
@@ -91,6 +92,7 @@ class QuickAddStock {
                         }
                         final qr = QrMedicineParser.parse(raw.toString());
                         int n = 0;
+                        bool aiUsed = false;
                         if (qr.batch.isNotEmpty) {
                           batchCtrl.text = qr.batch;
                           n++;
@@ -108,9 +110,34 @@ class QuickAddStock {
                             n++;
                           } catch (_) {}
                         }
+                        if (n == 0) {
+                          final ai = await GeminiService.tryQrWithLoader(
+                              context, raw.toString());
+                          if (ai != null) {
+                            if (ai.batch.isNotEmpty) {
+                              batchCtrl.text = ai.batch;
+                              n++;
+                            }
+                            if (ai.mrp.isNotEmpty) {
+                              mrpCtrl.text = ai.mrp;
+                              n++;
+                            }
+                            if (ai.expiry.isNotEmpty) {
+                              try {
+                                final parts = ai.expiry.split('/');
+                                final dt = DateTime(int.parse(parts[2]),
+                                    int.parse(parts[1]),
+                                    int.parse(parts[0]));
+                                setD(() => expiry = dt);
+                                n++;
+                              } catch (_) {}
+                            }
+                            aiUsed = n > 0;
+                          }
+                        }
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                             content: Text(n > 0
-                                ? Lang.t('qr_filled')
+                                ? Lang.t(aiUsed ? 'qr_ai' : 'qr_filled')
                                 : Lang.t('qr_none')),
                             backgroundColor:
                                 n > 0 ? Colors.green : Colors.orange));

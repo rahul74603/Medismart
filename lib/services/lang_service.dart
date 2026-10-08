@@ -383,6 +383,9 @@ class Lang {
       'qr_hint': 'Put the QR inside the box',
       'qr_filled': 'QR details filled - check & Save!',
       'qr_none': 'No details in QR - fill manually',
+      'gem_key': 'Gemini API Key (AI QR, optional)',
+      'qr_ai': 'AI se padha - check & Save!',
+      'qr_wait': 'AI padh raha hai…',
     },
     'hi': {
       // Dashboard
@@ -742,6 +745,9 @@ class Lang {
       'qr_hint': 'QR को डिब्बे के अंदर रखें',
       'qr_filled': 'QR से डिटेल भरी - जांचकर Save करें!',
       'qr_none': 'QR में डिटेल नहीं मिली - खुद भरें',
+      'gem_key': 'Gemini API Key (AI QR के लिए)',
+      'qr_ai': 'AI ने पढ़ा - जांचकर Save करें!',
+      'qr_wait': 'AI पढ़ रहा है…',
     },
   };
 }
