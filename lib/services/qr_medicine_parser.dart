@@ -66,27 +66,36 @@ class QrMedicineParser {
   }
 
   // ---------- flat GS1: 01<14 digits>17<YYMMDD>10<batch> ----------
+  // Batch me letters ho sakte hain, isliye poori string digits-only hona zaroori nahi.
   static void _parseFlatGS1(String text, QrMedicineData d) {
     try {
-      final flat = text.replaceAll(RegExp(r'[\s\x1D\x1E|]+'), '');
-      if (flat.length < 22) return;
-      if (!RegExp(r'^\d+$').hasMatch(flat)) return;
+      final flat = text.replaceAll(RegExp(r'\s+'), '');
+      if (flat.length < 16) return;
       if (!flat.startsWith('01')) return;
-      d.gtin = flat.substring(2, 16);
+      final gtin = flat.substring(2, 16);
+      if (!RegExp(r'^\d{14}$').hasMatch(gtin)) return;
+      d.gtin = gtin;
+      bool _is6(String s) => RegExp(r'^\d{6}$').hasMatch(s);
       int i = 16;
       while (i < flat.length) {
         final rest = flat.substring(i);
-        if (rest.startsWith('17') && rest.length >= 8) {
-          d.expiry = rest.substring(2, 8); // YYMMDD
+        // FNC1 / separator chars skip karo
+        if (rest.startsWith(RegExp(r'[\x1D\x1E|]'))) {
+          i++;
+          continue;
+        }
+        if (rest.startsWith('17') && rest.length >= 8 && _is6(rest.substring(2, 8))) {
+          if (d.expiry.isEmpty) d.expiry = rest.substring(2, 8); // YYMMDD
           i += 8;
-        } else if (rest.startsWith('11') && rest.length >= 8) {
-          d.mfg = rest.substring(2, 8);
+        } else if (rest.startsWith('11') && rest.length >= 8 && _is6(rest.substring(2, 8))) {
+          if (d.mfg.isEmpty) d.mfg = rest.substring(2, 8);
           i += 8;
-        } else if (rest.startsWith('15') && rest.length >= 8) {
+        } else if (rest.startsWith('15') && rest.length >= 8 && _is6(rest.substring(2, 8))) {
           i += 8; // best-before, not needed
         } else if (rest.startsWith('10')) {
-          // batch = rest (variable length, till end)
-          final b = rest.substring(2);
+          // batch = separator ya end tak (variable length)
+          var b = rest.substring(2).split(RegExp(r'[\x1D\x1E|]')).first;
+          b = b.replaceAll(RegExp(r'[^A-Za-z0-9\-\/]'), '');
           if (b.isNotEmpty && b.length <= 20) d.batch = b;
           break;
         } else if (rest.startsWith('21')) {
@@ -214,8 +223,10 @@ class QrMedicineParser {
     try {
       var s = v.trim();
       if (s.isEmpty) return '';
-      // strip time part if any
-      s = s.split(RegExp(r'[T ]')).first;
+      // strip ISO time part only: 2026-11-01T10:00 / 2026-11-01 10:00
+      // ('1 Nov 2026' jaisi date me space kaatna MANA hai)
+      final iso = RegExp(r'^(\d{4}-\d{2}-\d{2})[T ]\d').firstMatch(s);
+      if (iso != null) s = iso.group(1)!;
       // YYMMDD (GS1, 6 digits)
       if (RegExp(r'^\d{6}$').hasMatch(s)) {
         final yy = int.parse(s.substring(0, 2));
