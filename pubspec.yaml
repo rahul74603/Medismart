@@ -37,6 +37,7 @@ dependencies:
 
   # QR Scan (camera)
   mobile_scanner: ^5.2.3
+  image_picker: ^1.0.7  # QR gallery pick
   http: ^1.2.0  # Gemini AI calls
 
   # Call & SMS (New Added)
