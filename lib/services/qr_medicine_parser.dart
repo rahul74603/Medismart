@@ -67,9 +67,20 @@ class QrMedicineParser {
 
   // ---------- flat GS1: 01<14 digits>17<YYMMDD>10<batch> ----------
   // Batch me letters ho sakte hain, isliye poori string digits-only hona zaroori nahi.
+  // NOTE: separator ke liye regex NAHI - sirf codeUnit compare (regex control-char
+  // par kuch engine me throw karta hai aur try/catch use chupchaap nigal jata hai).
   static void _parseFlatGS1(String text, QrMedicineData d) {
     try {
-      final flat = text.replaceAll(RegExp(r'\s+'), '');
+      // whitespace hatao; FNC1/pipe mile to wahin kaat do
+      // (GTIN+EXP fixed-length hain; batch ke baad sirf serial hota hai jo bekaar hai)
+      final buf = StringBuffer();
+      for (int k = 0; k < text.length; k++) {
+        final u = text.codeUnitAt(k);
+        if (u == 0x1D || u == 0x1E || u == 124) break; // GS, RS, |
+        if (u == 32 || u == 9 || u == 10 || u == 13) continue; // space/tab/LF/CR
+        buf.writeCharCode(u);
+      }
+      final flat = buf.toString();
       if (flat.length < 16) return;
       if (!flat.startsWith('01')) return;
       final gtin = flat.substring(2, 16);
@@ -79,11 +90,6 @@ class QrMedicineParser {
       int i = 16;
       while (i < flat.length) {
         final rest = flat.substring(i);
-        // FNC1 / separator chars skip karo
-        if (rest.startsWith(RegExp(r'[\x1D\x1E|]'))) {
-          i++;
-          continue;
-        }
         if (rest.startsWith('17') && rest.length >= 8 && _is6(rest.substring(2, 8))) {
           if (d.expiry.isEmpty) d.expiry = rest.substring(2, 8); // YYMMDD
           i += 8;
@@ -93,9 +99,7 @@ class QrMedicineParser {
         } else if (rest.startsWith('15') && rest.length >= 8 && _is6(rest.substring(2, 8))) {
           i += 8; // best-before, not needed
         } else if (rest.startsWith('10')) {
-          // batch = separator ya end tak (variable length)
-          var b = rest.substring(2).split(RegExp(r'[\x1D\x1E|]')).first;
-          b = b.replaceAll(RegExp(r'[^A-Za-z0-9\-\/]'), '');
+          var b = rest.substring(2).replaceAll(RegExp(r'[^A-Za-z0-9\-\/]'), '');
           if (b.isNotEmpty && b.length <= 20) d.batch = b;
           break;
         } else if (rest.startsWith('21')) {

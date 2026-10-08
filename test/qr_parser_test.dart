@@ -88,6 +88,14 @@ void main() {
       expect(d.mrp, '50');
     });
 
+    test('flat GS1 with FNC1 separator + serial', () {
+      final d = QrMedicineParser.parse(
+          '01089011112222281726063010AB1234\x1D21999');
+      expect(d.gtin, '08901111222228');
+      expect(d.batch, 'AB1234');
+      expect(d.expiry, '30/06/2026');
+    });
+
     test('valid till + packed mfg', () {
       final d = QrMedicineParser.parse(
           'Valid Till 31/12/2026\nPacked On: 01/2024');
