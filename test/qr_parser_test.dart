@@ -13,7 +13,7 @@ void main() {
 
     test('flat GS1 format', () {
       final d =
-          QrMedicineParser.parse('010890111122222817260630AB1234');
+          QrMedicineParser.parse('01089011112222281726063010AB1234');
       expect(d.gtin, '08901111222228');
       expect(d.batch, 'AB1234');
       expect(d.expiry, '30/06/2026');
