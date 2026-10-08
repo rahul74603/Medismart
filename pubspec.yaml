@@ -38,6 +38,7 @@ dependencies:
   # QR Scan (camera)
   mobile_scanner: ^5.2.3
   http: ^1.2.0  # Gemini AI calls
+  permission_handler: ^11.3.0  # SMS permission
 
   # Call & SMS (New Added)
   url_launcher: ^6.2.4

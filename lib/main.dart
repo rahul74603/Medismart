@@ -1,11 +1,14 @@
 import 'dart:convert'; 
-import 'package:crypto/crypto.dart'; 
+import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart'; 
 import 'package:flutter/material.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'db_helper.dart';
+import 'services/license_service.dart';
 
 // Screens Imports
 import 'screens/billing_screen.dart';
@@ -59,15 +62,17 @@ class LicenseCheckScreen extends StatefulWidget {
 }
 
 class _LicenseCheckScreenState extends State<LicenseCheckScreen> {
-  String _deviceId = "Fetching...";
+  String _devCode = '--------';
+  String _model = '';
   bool _isLicensed = false;
   bool _isLoading = true;
+  bool _smsSending = false;
+  bool _smsSent = false;
+  int _ownerTaps = 0;
   final TextEditingController _keyController = TextEditingController();
 
-  final String _secretSalt = "RAHUL_MEDICAL_ERP_2024_SECRET"; 
-
-  // 📅 --- TRIAL DATE SETTING ---
-  final String _trialExpiryDate = "2026-02-09";
+  // --- TRIAL DATE SETTING ---
+  final String _trialExpiryDate = '2026-02-09';
 
   @override
   void initState() {
@@ -76,21 +81,16 @@ class _LicenseCheckScreenState extends State<LicenseCheckScreen> {
   }
 
   void _checkLicense() async {
-    final prefs = await SharedPreferences.getInstance();
-    bool savedLicense = prefs.getBool('is_licensed') ?? false;
-
+    bool savedLicense = await LicenseService.isLicensed();
     if (savedLicense) {
       _enterApp();
       return;
     }
-
     DateTime expiry = DateTime.parse(_trialExpiryDate);
-    DateTime today = DateTime.now();
-
-    if (today.isBefore(expiry)) {
+    if (DateTime.now().isBefore(expiry)) {
       _enterApp();
     } else {
-      _getDeviceId();
+      _loadIdentity();
     }
   }
 
@@ -103,37 +103,149 @@ class _LicenseCheckScreenState extends State<LicenseCheckScreen> {
     }
   }
 
-  void _getDeviceId() async {
-    final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-    String id = "UNKNOWN";
+  void _loadIdentity() async {
+    String model = '';
     try {
-      AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-      id = androidInfo.id;
-    } catch (e) {
-      id = "ERROR";
-    }
-    if (mounted) setState(() { _deviceId = id; _isLoading = false; });
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      model = '${androidInfo.brand} ${androidInfo.model}';
+    } catch (_) {}
+    final id = await LicenseService.getInstallId();
+    if (!mounted) return;
+    setState(() {
+      _devCode = LicenseService.codeFor(id);
+      _model = model.trim().isEmpty ? 'Android' : model.trim();
+      _isLoading = false;
+    });
   }
 
   void _verifyKey() async {
-    String inputKey = _keyController.text.trim();
-    var bytes = utf8.encode(_deviceId + _secretSalt);
-    var digest = sha256.convert(bytes);
-    String correctKey = digest.toString().substring(0, 8).toUpperCase();
-
-    if (inputKey == correctKey) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('is_licensed', true); 
+    final input = _keyController.text.trim().toUpperCase();
+    final correct = LicenseService.keyFor(_devCode);
+    if (input.isNotEmpty && input == correct) {
+      await LicenseService.setLicensed();
+      if (!mounted) return;
       setState(() => _isLicensed = true);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Activated!"), backgroundColor: Colors.green));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(Lang.t('lic_ok')), backgroundColor: Colors.green));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Invalid Key!"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(Lang.t('lic_bad')), backgroundColor: Colors.red));
     }
+  }
+
+  Future<void> _sendSms() async {
+    if (_smsSending) return;
+    setState(() => _smsSending = true);
+    try {
+      final st = await Permission.sms.request();
+      if (!st.isGranted) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(Lang.t('lic_noperm')),
+            backgroundColor: Colors.red));
+        return;
+      }
+      final msg =
+          'MediSmart naya device! Code: $_devCode ($_model). Key bhej do.';
+      final ok = await LicenseService.sendCodeSms(msg);
+      if (!mounted) return;
+      setState(() => _smsSent = ok);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(Lang.t(ok ? 'lic_sent' : 'lic_fail')),
+          backgroundColor: ok ? Colors.green : Colors.red));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(Lang.t('lic_fail')), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _smsSending = false);
+    }
+  }
+
+  Future<void> _sendWhatsApp() async {
+    final msg =
+        '🔐 *MediSmart Activation*\n📱 Device Code: `$_devCode`\n📲 Model: $_model\n👉 Key bhej dijiye!';
+    final url = Uri.parse(
+        'https://wa.me/${LicenseService.ownerWa}?text=${Uri.encodeComponent(msg)}');
+    try {
+      final ok = await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(Lang.t('lic_fail')), backgroundColor: Colors.red));
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(Lang.t('lic_fail')), backgroundColor: Colors.red));
+    }
+  }
+
+  void _ownerTap() {
+    _ownerTaps++;
+    if (_ownerTaps >= 5) {
+      _ownerTaps = 0;
+      _showOwnerTool();
+    }
+  }
+
+  void _showOwnerTool() {
+    final codeCtrl = TextEditingController();
+    String outKey = '';
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: Text(Lang.t('lic_owner')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: codeCtrl,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                    labelText: Lang.t('lic_paste'),
+                    border: const OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              if (outKey.isNotEmpty)
+                SelectableText(outKey,
+                    style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.teal)),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(Lang.t('cancel'))),
+            if (outKey.isNotEmpty)
+              TextButton(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: outKey));
+                  Navigator.pop(ctx);
+                },
+                child: const Text('Copy'),
+              ),
+            ElevatedButton(
+              onPressed: () {
+                final k = LicenseService.keyFor(codeCtrl.text);
+                setD(() => outKey = k);
+              },
+              child: Text(Lang.t('lic_getkey')),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_isLoading) {
+      return const Scaffold(
+          body: Center(child: CircularProgressIndicator()));
+    }
     if (_isLicensed) return const DashboardScreen();
 
     return Scaffold(
@@ -143,15 +255,88 @@ class _LicenseCheckScreenState extends State<LicenseCheckScreen> {
           padding: const EdgeInsets.all(30),
           child: Column(
             children: [
-              const Icon(Icons.security, size: 80, color: Colors.white),
+              GestureDetector(
+                onTap: _ownerTap,
+                child: const Icon(Icons.security,
+                    size: 80, color: Colors.white),
+              ),
               const SizedBox(height: 20),
-              const Text("TRIAL EXPIRED", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 30),
-              SelectableText(_deviceId, style: const TextStyle(fontSize: 20, color: Colors.blue)),
+              Text(Lang.t('lic_title'),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              Text(Lang.t('lic_sub'),
+                  textAlign: TextAlign.center,
+                  style:
+                      const TextStyle(color: Colors.white70, fontSize: 13)),
               const SizedBox(height: 20),
-              TextField(controller: _keyController, textAlign: TextAlign.center, decoration: const InputDecoration(labelText: "Enter Key", filled: true, fillColor: Colors.white)),
+              SelectableText(_devCode,
+                  style: const TextStyle(
+                      fontSize: 32,
+                      color: Colors.amber,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 3)),
+              const SizedBox(height: 6),
+              Text(_model,
+                  style:
+                      const TextStyle(color: Colors.white60, fontSize: 12)),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _smsSending ? null : _sendSms,
+                  icon: _smsSending
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : Icon(_smsSent ? Icons.done_all : Icons.sms),
+                  label: Text(Lang.t(_smsSent ? 'lic_resend' : 'lic_sms')),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade600,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _sendWhatsApp,
+                  icon: const Icon(Icons.chat, color: Colors.white),
+                  label: Text(Lang.t('lic_wa'),
+                      style: const TextStyle(color: Colors.white)),
+                  style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.white),
+                      padding: const EdgeInsets.symmetric(vertical: 14)),
+                ),
+              ),
               const SizedBox(height: 20),
-              ElevatedButton(onPressed: _verifyKey, child: const Text("ACTIVATE"))
+              TextField(
+                  controller: _keyController,
+                  textAlign: TextAlign.center,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: InputDecoration(
+                      labelText: Lang.t('lic_key'),
+                      filled: true,
+                      fillColor: Colors.white)),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                    onPressed: _verifyKey,
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber.shade700,
+                        foregroundColor: Colors.white,
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 14)),
+                    child: Text(Lang.t('lic_go'),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16))),
+              ),
             ],
           ),
         ),
