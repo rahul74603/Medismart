@@ -1,15 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/lang_service.dart';
 
-/// Smart QR/barcode scanner. Pops with the scanned raw String,
-/// or null if user goes back. Never throws.
-/// - Auto-read from camera (shows Found tick before closing)
-/// - Gallery photo scan (analyzeImage)
-/// - Manual type/paste fallback
-/// - Camera-blocked state with Retry (no more black screen)
+/// DIAGNOSTIC BUILD — shows live state on overlay so we can see exactly
+/// where the pipeline breaks. Will be replaced with clean version once
+/// the root cause is confirmed.
 class QrScanScreen extends StatefulWidget {
   const QrScanScreen({super.key});
 
@@ -27,6 +25,12 @@ class _QrScanScreenState extends State<QrScanScreen>
   bool _found = false;
   bool _analyzing = false;
 
+  // ---- DIAGNOSTIC counters ----
+  int _detectCalls = 0; // how many times _onDetect was called
+  int _galleryOk = 0; // successful gallery detections
+  String _galleryErr = ''; // last gallery error message
+  String _lastRaw = ''; // last raw value seen (truncated)
+
   @override
   void initState() {
     super.initState();
@@ -35,10 +39,11 @@ class _QrScanScreenState extends State<QrScanScreen>
       ..repeat(reverse: true);
     try {
       _controller = MobileScannerController(
-        detectionSpeed: DetectionSpeed.noDuplicates,
+        detectionSpeed: DetectionSpeed.normal, // normal = per-frame + timeout
         facing: CameraFacing.back,
       );
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[QR-DIAG] Controller create FAILED: $e');
       _controller = null;
     }
   }
@@ -55,16 +60,24 @@ class _QrScanScreenState extends State<QrScanScreen>
   }
 
   void _onDetect(BarcodeCapture capture) {
+    _detectCalls++;
+    debugPrint('[QR-DIAG] _onDetect #$_detectCalls '
+        'barcodes=${capture.barcodes.length}');
+    if (mounted) setState(() {}); // update diag counter on screen
     if (_done || _paused) return;
     try {
       if (capture.barcodes.isEmpty) return;
       final raw = capture.barcodes.first.rawValue;
       if (raw == null || raw.trim().isEmpty) return;
+      _lastRaw = raw.length > 40 ? '${raw.substring(0, 40)}...' : raw;
+      debugPrint('[QR-DIAG] DETECTED: $_lastRaw');
+      if (mounted) setState(() {});
       _finish(raw.trim());
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[QR-DIAG] _onDetect EXCEPTION: $e');
+    }
   }
 
-  /// Haptic + Found tick, phir result wapas.
   Future<void> _finish(String raw) async {
     if (_done) return;
     _done = true;
@@ -79,39 +92,57 @@ class _QrScanScreenState extends State<QrScanScreen>
   Future<void> _pickFromGallery() async {
     if (_done || _analyzing) return;
     _paused = true;
+    _galleryErr = '';
     try {
-      final img =
-          await ImagePicker().pickImage(source: ImageSource.gallery);
+      final img = await ImagePicker().pickImage(source: ImageSource.gallery);
       if (!mounted) return;
-      if (img == null) return; // user cancelled
+      if (img == null) {
+        _paused = false;
+        return;
+      }
       setState(() => _analyzing = true);
+      debugPrint('[QR-DIAG] gallery path=${img.path}');
       BarcodeCapture? cap;
       try {
         cap = await _controller?.analyzeImage(img.path);
-      } catch (_) {
+        debugPrint('[QR-DIAG] analyzeImage result: '
+            'cap=${cap != null}, barcodes=${cap?.barcodes.length ?? 0}');
+      } catch (e) {
+        debugPrint('[QR-DIAG] analyzeImage EXCEPTION: $e');
+        _galleryErr = 'analyzeErr: $e';
         cap = null;
       }
       if (!mounted) return;
       String raw = '';
-      try {
-        if (cap != null && cap.barcodes.isNotEmpty) {
-          raw = (cap.barcodes.first.rawValue ?? '').trim();
-        }
-      } catch (_) {}
+      if (cap != null && cap.barcodes.isNotEmpty) {
+        raw = (cap.barcodes.first.rawValue ?? '').trim();
+      }
       setState(() => _analyzing = false);
       if (raw.isNotEmpty) {
+        _galleryOk++;
+        _lastRaw = raw.length > 40 ? '${raw.substring(0, 40)}...' : raw;
+        debugPrint('[QR-DIAG] gallery OK: $_lastRaw');
         _finish(raw);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(Lang.t('qr_nobarcode')),
-            backgroundColor: Colors.red));
+        _galleryErr =
+            _galleryErr.isEmpty ? 'no barcode in image' : _galleryErr;
+        debugPrint('[QR-DIAG] gallery FAIL: $_galleryErr');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('${Lang.t('qr_nobarcode')}\n[$_galleryErr]'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4)));
+        }
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[QR-DIAG] gallery outer EXCEPTION: $e');
+      _galleryErr = 'outer: $e';
       if (mounted) {
         setState(() => _analyzing = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(Lang.t('qr_nobarcode')),
-            backgroundColor: Colors.red));
+            content: Text('Gallery error: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4)));
       }
     } finally {
       _paused = false;
@@ -158,14 +189,35 @@ class _QrScanScreenState extends State<QrScanScreen>
   }
 
   Future<void> _retryCamera() async {
+    debugPrint('[QR-DIAG] RETRY -- calling start()');
     try {
       await _controller?.start();
-      if (mounted) setState(() {});
+      debugPrint('[QR-DIAG] start() returned OK');
+    } catch (e) {
+      debugPrint('[QR-DIAG] start() EXCEPTION: $e');
+    }
+    if (mounted) setState(() {});
+  }
+
+  // Force-stop then re-start (full restart)
+  Future<void> _fullRestart() async {
+    debugPrint('[QR-DIAG] FULL RESTART');
+    try {
+      await _controller?.stop();
     } catch (_) {}
+    await Future.delayed(const Duration(milliseconds: 500));
+    try {
+      await _controller?.start();
+      debugPrint('[QR-DIAG] restart start() OK');
+    } catch (e) {
+      debugPrint('[QR-DIAG] restart start() EXCEPTION: $e');
+    }
+    if (mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
+    final c = _controller;
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -175,16 +227,21 @@ class _QrScanScreenState extends State<QrScanScreen>
       ),
       body: Stack(
         children: [
-          if (_controller != null)
+          // ---- Camera preview ----
+          if (c != null)
             MobileScanner(
-              controller: _controller!,
+              controller: c,
               onDetect: _onDetect,
               fit: BoxFit.cover,
-              errorBuilder: (ctx, err, child) => _cameraBlocked(),
+              errorBuilder: (ctx, err, child) {
+                debugPrint('[QR-DIAG] errorBuilder: $err');
+                return _cameraBlocked();
+              },
             )
           else
             _cameraBlocked(),
-          // Scan box + moving laser line
+
+          // ---- Scan box + laser line ----
           Center(
             child: SizedBox(
               width: 260,
@@ -238,26 +295,80 @@ class _QrScanScreenState extends State<QrScanScreen>
               ),
             ),
           ),
+
+          // ---- ANALYZING spinner ----
           if (_analyzing)
             Container(
               color: Colors.black54,
               child: const Center(
-                  child: CircularProgressIndicator(color: Colors.tealAccent)),
+                  child:
+                      CircularProgressIndicator(color: Colors.tealAccent)),
             ),
-          // Bottom: hint + 3 buttons
+
+          // ============================================================
+          // DIAGNOSTIC OVERLAY -- top-right corner, always visible
+          // ============================================================
+          if (c != null)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: ValueListenableBuilder<MobileScannerState>(
+                valueListenable: c,
+                builder: (ctx, state, _) {
+                  final errText = state.error != null
+                      ? '${state.error!.errorCode}: '
+                          '${state.error!.errorDetails?.message ?? "?"}'
+                      : 'none';
+                  return Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black87,
+                      borderRadius: BorderRadius.circular(8),
+                      border:
+                          Border.all(color: Colors.tealAccent, width: 1),
+                    ),
+                    child: DefaultTextStyle(
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          height: 1.4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('init: ${state.isInitialized ? "OK" : "NO"}'
+                              '  run: ${state.isRunning ? "OK" : "NO"}'),
+                          Text('cam: ${state.availableCameras ?? "?"}'
+                              '  size: ${state.size.width.toInt()}'
+                              'x${state.size.height.toInt()}'),
+                          Text('err: $errText'),
+                          Text('detect# $_detectCalls'
+                              '  last: ${_lastRaw.isEmpty ? "--" : _lastRaw}'),
+                          Text(
+                              'galleryOk: $_galleryOk'
+                              '  gErr: ${_galleryErr.isEmpty ? "--" : _galleryErr}'),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+          // ---- Bottom: hint + 3 buttons + DIAG buttons ----
           Positioned(
-            bottom: 24,
-            left: 16,
-            right: 16,
+            bottom: 12,
+            left: 12,
+            right: 12,
             child: Column(
               children: [
                 Text(
                   Lang.t('qr_hint'),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      color: Colors.white, fontSize: 15),
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
+                // Main 3 buttons
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
@@ -268,8 +379,22 @@ class _QrScanScreenState extends State<QrScanScreen>
                     _roundBtn(Icons.photo_library, Colors.white,
                         _pickFromGallery,
                         label: Lang.t('qr_gallery')),
-                    _roundBtn(Icons.keyboard, Colors.white, _typeManually,
+                    _roundBtn(
+                        Icons.keyboard, Colors.white, _typeManually,
                         label: Lang.t('qr_type')),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                // DIAG: restart + Start
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _roundBtn(Icons.restart_alt, Colors.orangeAccent,
+                        _fullRestart,
+                        label: 'Restart'),
+                    _roundBtn(Icons.center_focus_strong,
+                        Colors.cyanAccent, _retryCamera,
+                        label: 'Start'),
                   ],
                 ),
               ],
@@ -288,25 +413,24 @@ class _QrScanScreenState extends State<QrScanScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
                 color: Colors.white12,
                 borderRadius: BorderRadius.circular(30),
                 border: Border.all(color: Colors.white24)),
-            child: Icon(icon, color: color, size: 28),
+            child: Icon(icon, color: color, size: 24),
           ),
           if (label != null) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             Text(label,
                 style:
-                    const TextStyle(color: Colors.white, fontSize: 12)),
+                    const TextStyle(color: Colors.white70, fontSize: 10)),
           ],
         ],
       ),
     );
   }
 
-  /// Camera permission denied / blocked - kaala screen kabhi nahi.
   Widget _cameraBlocked() {
     return Container(
       color: Colors.black,
@@ -344,8 +468,7 @@ class _QrScanScreenState extends State<QrScanScreen>
                 icon: const Icon(Icons.photo_library,
                     color: Colors.tealAccent),
                 label: Text(Lang.t('qr_gallery'),
-                    style:
-                        const TextStyle(color: Colors.tealAccent)),
+                    style: const TextStyle(color: Colors.tealAccent)),
               ),
             ],
           ),
