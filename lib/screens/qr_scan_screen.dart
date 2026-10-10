@@ -1,13 +1,13 @@
-import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import '../services/gemini_service.dart';
 import '../services/lang_service.dart';
 
-/// DIAGNOSTIC BUILD — shows live state on overlay so we can see exactly
-/// where the pipeline breaks. Will be replaced with clean version once
-/// the root cause is confirmed.
+/// Photo-based medicine scanner. Uses Gemini AI to read medicine labels.
+/// Returns Map<String,String> with extracted fields, or null if cancelled.
+/// All fields are editable — user reviews before saving.
 class QrScanScreen extends StatefulWidget {
   const QrScanScreen({super.key});
 
@@ -15,465 +15,235 @@ class QrScanScreen extends StatefulWidget {
   State<QrScanScreen> createState() => _QrScanScreenState();
 }
 
-class _QrScanScreenState extends State<QrScanScreen>
-    with SingleTickerProviderStateMixin {
-  MobileScannerController? _controller;
-  late AnimationController _lineAnim;
-  bool _done = false;
-  bool _paused = false;
-  bool _torchOn = false;
-  bool _found = false;
+class _QrScanScreenState extends State<QrScanScreen> {
+  Uint8List? _imageBytes;
+  bool _picking = false;
   bool _analyzing = false;
+  bool _showForm = false;
+  String _error = '';
 
-  // ---- DIAGNOSTIC counters ----
-  int _detectCalls = 0; // how many times _onDetect was called
-  int _galleryOk = 0; // successful gallery detections
-  String _galleryErr = ''; // last gallery error message
-  String _lastRaw = ''; // last raw value seen (truncated)
+  final Map<String, TextEditingController> _ctrls = {};
+
+  static const _fieldOrder = [
+    'name', 'salts', 'batch', 'expiry', 'mfg', 'mrp',
+    'manufacturer', 'gtin', 'pack_size', 'hsn',
+  ];
+  static const _fieldLabels = {
+    'name': 'Medicine Name', 'salts': 'Salts / Composition',
+    'batch': 'Batch No.', 'expiry': 'Expiry Date', 'mfg': 'Mfg Date',
+    'mrp': 'MRP (Rs)', 'manufacturer': 'Manufacturer',
+    'gtin': 'Barcode / GTIN', 'pack_size': 'Pack Size', 'hsn': 'HSN Code',
+  };
+  static const _fieldIcons = {
+    'name': Icons.medical_services, 'salts': Icons.science,
+    'batch': Icons.tag, 'expiry': Icons.event, 'mfg': Icons.calendar_today,
+    'mrp': Icons.currency_rupee, 'manufacturer': Icons.factory,
+    'gtin': Icons.barcode_reader, 'pack_size': Icons.inventory_2, 'hsn': Icons.numbers,
+  };
 
   @override
   void initState() {
     super.initState();
-    _lineAnim = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1800))
-      ..repeat(reverse: true);
-    try {
-      _controller = MobileScannerController(
-        detectionSpeed: DetectionSpeed.normal, // normal = per-frame + timeout
-        facing: CameraFacing.back,
-      );
-    } catch (e) {
-      debugPrint('[QR-DIAG] Controller create FAILED: $e');
-      _controller = null;
-    }
+    for (final k in _fieldOrder) { _ctrls[k] = TextEditingController(); }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _pickImage(true));
   }
 
   @override
   void dispose() {
-    try {
-      _lineAnim.dispose();
-    } catch (_) {}
-    try {
-      _controller?.dispose();
-    } catch (_) {}
+    for (final c in _ctrls.values) { c.dispose(); }
     super.dispose();
   }
 
-  void _onDetect(BarcodeCapture capture) {
-    _detectCalls++;
-    debugPrint('[QR-DIAG] _onDetect #$_detectCalls '
-        'barcodes=${capture.barcodes.length}');
-    if (mounted) setState(() {}); // update diag counter on screen
-    if (_done || _paused) return;
+  Future<void> _pickImage(bool fromCamera) async {
+    if (_picking) return;
+    _picking = true;
     try {
-      if (capture.barcodes.isEmpty) return;
-      final raw = capture.barcodes.first.rawValue;
-      if (raw == null || raw.trim().isEmpty) return;
-      _lastRaw = raw.length > 40 ? '${raw.substring(0, 40)}...' : raw;
-      debugPrint('[QR-DIAG] DETECTED: $_lastRaw');
-      if (mounted) setState(() {});
-      _finish(raw.trim());
-    } catch (e) {
-      debugPrint('[QR-DIAG] _onDetect EXCEPTION: $e');
-    }
-  }
-
-  Future<void> _finish(String raw) async {
-    if (_done) return;
-    _done = true;
-    try {
-      HapticFeedback.mediumImpact();
-    } catch (_) {}
-    if (mounted) setState(() => _found = true);
-    await Future.delayed(const Duration(milliseconds: 450));
-    if (mounted) Navigator.pop(context, raw);
-  }
-
-  Future<void> _pickFromGallery() async {
-    if (_done || _analyzing) return;
-    _paused = true;
-    _galleryErr = '';
-    try {
-      final img = await ImagePicker().pickImage(source: ImageSource.gallery);
+      final img = await ImagePicker().pickImage(
+        source: fromCamera ? ImageSource.camera : ImageSource.gallery,
+        imageQuality: 85, maxWidth: 1920, maxHeight: 1920,
+      );
+      if (!mounted || img == null) { _picking = false; return; }
+      final bytes = await img.readAsBytes();
       if (!mounted) return;
-      if (img == null) {
-        _paused = false;
-        return;
-      }
-      setState(() => _analyzing = true);
-      debugPrint('[QR-DIAG] gallery path=${img.path}');
-      BarcodeCapture? cap;
-      try {
-        cap = await _controller?.analyzeImage(img.path);
-        debugPrint('[QR-DIAG] analyzeImage result: '
-            'cap=${cap != null}, barcodes=${cap?.barcodes.length ?? 0}');
-      } catch (e) {
-        debugPrint('[QR-DIAG] analyzeImage EXCEPTION: $e');
-        _galleryErr = 'analyzeErr: $e';
-        cap = null;
-      }
-      if (!mounted) return;
-      String raw = '';
-      if (cap != null && cap.barcodes.isNotEmpty) {
-        raw = (cap.barcodes.first.rawValue ?? '').trim();
-      }
-      setState(() => _analyzing = false);
-      if (raw.isNotEmpty) {
-        _galleryOk++;
-        _lastRaw = raw.length > 40 ? '${raw.substring(0, 40)}...' : raw;
-        debugPrint('[QR-DIAG] gallery OK: $_lastRaw');
-        _finish(raw);
-      } else {
-        _galleryErr =
-            _galleryErr.isEmpty ? 'no barcode in image' : _galleryErr;
-        debugPrint('[QR-DIAG] gallery FAIL: $_galleryErr');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('${Lang.t('qr_nobarcode')}\n[$_galleryErr]'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 4)));
-        }
-      }
+      setState(() { _imageBytes = bytes; _showForm = false; _fields = {}; _error = ''; });
+      _analyze();
     } catch (e) {
-      debugPrint('[QR-DIAG] gallery outer EXCEPTION: $e');
-      _galleryErr = 'outer: $e';
-      if (mounted) {
-        setState(() => _analyzing = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Gallery error: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4)));
-      }
-    } finally {
-      _paused = false;
+      if (mounted) setState(() => _error = 'Camera error: $e');
+    } finally { _picking = false; }
+  }
+
+  Map<String, String> _fields = {};
+
+  Future<void> _analyze() async {
+    if (_imageBytes == null || _imageBytes!.isEmpty) return;
+    setState(() { _analyzing = true; _error = ''; });
+    final result = await GeminiService.tryImageWithLoader(context, _imageBytes!);
+    if (!mounted) return;
+    if (result == null || result.isEmpty) {
+      setState(() { _analyzing = false; _error = 'AI could not read the image. Try a clearer photo.'; });
+      return;
     }
+    for (final k in _fieldOrder) { _ctrls[k]!.text = (result[k] ?? '').trim(); }
+    setState(() { _fields = result; _analyzing = false; _showForm = true; });
   }
 
-  void _typeManually() {
-    if (_done) return;
-    _paused = true;
-    final ctrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(Lang.t('qr_type_title')),
-        content: TextField(
-          controller: ctrl,
-          maxLines: 3,
-          decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              hintText: 'GTIN / Batch / EXP ...'),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(Lang.t('cancel'))),
-          ElevatedButton(
-            onPressed: () {
-              final v = ctrl.text.trim();
-              Navigator.pop(ctx);
-              if (v.isNotEmpty) _finish(v);
-            },
-            child: Text(Lang.t('add')),
-          ),
-        ],
-      ),
-    ).then((_) => _paused = false);
-  }
-
-  Future<void> _toggleTorch() async {
-    try {
-      await _controller?.toggleTorch();
-      if (mounted) setState(() => _torchOn = !_torchOn);
-    } catch (_) {}
-  }
-
-  Future<void> _retryCamera() async {
-    debugPrint('[QR-DIAG] RETRY -- calling start()');
-    try {
-      await _controller?.start();
-      debugPrint('[QR-DIAG] start() returned OK');
-    } catch (e) {
-      debugPrint('[QR-DIAG] start() EXCEPTION: $e');
+  void _save() {
+    final out = <String, String>{};
+    for (final k in _fieldOrder) { out[k] = _ctrls[k]!.text.trim(); }
+    if ((out['name'] ?? '').isEmpty && (out['salts'] ?? '').isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Enter at least medicine name or salts'), backgroundColor: Colors.orange,
+      ));
+      return;
     }
-    if (mounted) setState(() {});
-  }
-
-  // Force-stop then re-start (full restart)
-  Future<void> _fullRestart() async {
-    debugPrint('[QR-DIAG] FULL RESTART');
-    try {
-      await _controller?.stop();
-    } catch (_) {}
-    await Future.delayed(const Duration(milliseconds: 500));
-    try {
-      await _controller?.start();
-      debugPrint('[QR-DIAG] restart start() OK');
-    } catch (e) {
-      debugPrint('[QR-DIAG] restart start() EXCEPTION: $e');
-    }
-    if (mounted) setState(() {});
+    try { HapticFeedback.mediumImpact(); } catch (_) {}
+    Navigator.pop(context, out);
   }
 
   @override
   Widget build(BuildContext context) {
-    final c = _controller;
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: Text(Lang.t('qr_title')),
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-      ),
-      body: Stack(
-        children: [
-          // ---- Camera preview ----
-          if (c != null)
-            MobileScanner(
-              controller: c,
-              onDetect: _onDetect,
-              fit: BoxFit.cover,
-              errorBuilder: (ctx, err, child) {
-                debugPrint('[QR-DIAG] errorBuilder: $err');
-                return _cameraBlocked();
-              },
-            )
-          else
-            _cameraBlocked(),
-
-          // ---- Scan box + laser line ----
-          Center(
-            child: SizedBox(
-              width: 260,
-              height: 260,
-              child: Stack(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      border:
-                          Border.all(color: Colors.tealAccent, width: 3),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  AnimatedBuilder(
-                    animation: _lineAnim,
-                    builder: (ctx, _) => Positioned(
-                      top: 12 + _lineAnim.value * 232,
-                      left: 12,
-                      right: 12,
-                      child: Container(
-                          height: 3,
-                          decoration: BoxDecoration(
-                              color: _found ? Colors.green : Colors.red,
-                              borderRadius: BorderRadius.circular(2))),
-                    ),
-                  ),
-                  if (_found)
-                    Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 10),
-                        decoration: BoxDecoration(
-                            color: Colors.green,
-                            borderRadius: BorderRadius.circular(20)),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.check_circle,
-                                color: Colors.white),
-                            const SizedBox(width: 6),
-                            Text(Lang.t('qr_found'),
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16)),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-
-          // ---- ANALYZING spinner ----
-          if (_analyzing)
-            Container(
-              color: Colors.black54,
-              child: const Center(
-                  child:
-                      CircularProgressIndicator(color: Colors.tealAccent)),
-            ),
-
-          // ============================================================
-          // DIAGNOSTIC OVERLAY -- top-right corner, always visible
-          // ============================================================
-          if (c != null)
-            Positioned(
-              top: 8,
-              right: 8,
-              child: ValueListenableBuilder<MobileScannerState>(
-                valueListenable: c,
-                builder: (ctx, state, _) {
-                  final errText = state.error != null
-                      ? '${state.error!.errorCode}: '
-                          '${state.error!.errorDetails?.message ?? "?"}'
-                      : 'none';
-                  return Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.black87,
-                      borderRadius: BorderRadius.circular(8),
-                      border:
-                          Border.all(color: Colors.tealAccent, width: 1),
-                    ),
-                    child: DefaultTextStyle(
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          height: 1.4),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('init: ${state.isInitialized ? "OK" : "NO"}'
-                              '  run: ${state.isRunning ? "OK" : "NO"}'),
-                          Text('cam: ${state.availableCameras ?? "?"}'
-                              '  size: ${state.size.width.toInt()}'
-                              'x${state.size.height.toInt()}'),
-                          Text('err: $errText'),
-                          Text('detect# $_detectCalls'
-                              '  last: ${_lastRaw.isEmpty ? "--" : _lastRaw}'),
-                          Text(
-                              'galleryOk: $_galleryOk'
-                              '  gErr: ${_galleryErr.isEmpty ? "--" : _galleryErr}'),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-          // ---- Bottom: hint + 3 buttons + DIAG buttons ----
-          Positioned(
-            bottom: 12,
-            left: 12,
-            right: 12,
-            child: Column(
-              children: [
-                Text(
-                  Lang.t('qr_hint'),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                ),
-                const SizedBox(height: 10),
-                // Main 3 buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _roundBtn(
-                        _torchOn ? Icons.flash_on : Icons.flash_off,
-                        _torchOn ? Colors.amber : Colors.white,
-                        _toggleTorch),
-                    _roundBtn(Icons.photo_library, Colors.white,
-                        _pickFromGallery,
-                        label: Lang.t('qr_gallery')),
-                    _roundBtn(
-                        Icons.keyboard, Colors.white, _typeManually,
-                        label: Lang.t('qr_type')),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                // DIAG: restart + Start
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _roundBtn(Icons.restart_alt, Colors.orangeAccent,
-                        _fullRestart,
-                        label: 'Restart'),
-                    _roundBtn(Icons.center_focus_strong,
-                        Colors.cyanAccent, _retryCamera,
-                        label: 'Start'),
-                  ],
-                ),
-              ],
-            ),
-          ),
+        backgroundColor: Colors.teal, foregroundColor: Colors.white,
+        actions: [
+          if (!_showForm)
+            IconButton(icon: const Icon(Icons.text_fields), tooltip: 'Enter manually',
+              onPressed: () => setState(() { _showForm = true; _error = ''; })),
         ],
       ),
+      body: _showForm ? _buildForm() : _buildPhotoStep(),
     );
   }
 
-  Widget _roundBtn(IconData icon, Color color, VoidCallback onTap,
-      {String? label}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-                color: Colors.white12,
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: Colors.white24)),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          if (label != null) ...[
-            const SizedBox(height: 3),
-            Text(label,
-                style:
-                    const TextStyle(color: Colors.white70, fontSize: 10)),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _cameraBlocked() {
-    return Container(
-      color: Colors.black,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.no_photography,
-                  color: Colors.white54, size: 64),
+  Widget _buildPhotoStep() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(children: [
+        if (_imageBytes != null) ...[
+          ClipRRect(borderRadius: BorderRadius.circular(16),
+            child: Image.memory(_imageBytes!, height: 280, width: double.infinity, fit: BoxFit.cover)),
+          const SizedBox(height: 16),
+          Row(children: [
+            Expanded(child: OutlinedButton.icon(onPressed: _analyzing ? null : () => _pickImage(false),
+              icon: const Icon(Icons.photo_library), label: const Text('Gallery'))),
+            const SizedBox(width: 12),
+            Expanded(child: OutlinedButton.icon(onPressed: _analyzing ? null : () => _pickImage(true),
+              icon: const Icon(Icons.camera_alt), label: const Text('Retake'))),
+            const SizedBox(width: 12),
+            Expanded(child: ElevatedButton.icon(onPressed: _analyzing ? null : _analyze,
+              icon: _analyzing ? const SizedBox(width: 16, height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.auto_awesome),
+              label: Text(_analyzing ? 'Reading...' : 'Scan'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white))),
+          ]),
+        ] else ...[
+          Container(height: 280, width: double.infinity,
+            decoration: BoxDecoration(color: Colors.teal.withOpacity(0.05), borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.teal.shade200, width: 2)),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(Icons.camera_alt, size: 64, color: Colors.teal[300]),
               const SizedBox(height: 16),
-              Text(Lang.t('qr_noperm'),
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Text(Lang.t('qr_perm_hint'),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      color: Colors.white70, fontSize: 13)),
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: _retryCamera,
-                icon: const Icon(Icons.refresh),
-                label: Text(Lang.t('qr_retry')),
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal,
-                    foregroundColor: Colors.white),
-              ),
-              const SizedBox(height: 8),
-              TextButton.icon(
-                onPressed: _pickFromGallery,
-                icon: const Icon(Icons.photo_library,
-                    color: Colors.tealAccent),
-                label: Text(Lang.t('qr_gallery'),
-                    style: const TextStyle(color: Colors.tealAccent)),
-              ),
-            ],
-          ),
-        ),
-      ),
+              Text('Take a photo of the medicine', style: TextStyle(fontSize: 16, color: Colors.teal[700])),
+              const SizedBox(height: 4),
+              Text('AI will read all details from the label', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+            ])),
+          const SizedBox(height: 16),
+          Row(children: [
+            Expanded(child: ElevatedButton.icon(onPressed: _picking ? null : () => _pickImage(true),
+              icon: const Icon(Icons.camera_alt), label: const Text('Camera'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14)))),
+            const SizedBox(width: 12),
+            Expanded(child: OutlinedButton.icon(onPressed: _picking ? null : () => _pickImage(false),
+              icon: const Icon(Icons.photo_library), label: const Text('Gallery'),
+              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)))),
+          ]),
+        ],
+        if (_error.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Container(padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: Colors.orange[50], borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.orange[200]!)),
+            child: Row(children: [
+              Icon(Icons.warning_amber, color: Colors.orange[700]),
+              const SizedBox(width: 10),
+              Expanded(child: Text(_error, style: TextStyle(color: Colors.orange[800]))),
+            ])),
+        ],
+        if (_imageBytes == null) ...[
+          const SizedBox(height: 24),
+          _tip(Icons.lightbulb_outline, 'Good light + sharp photo = better results'),
+          const SizedBox(height: 8),
+          _tip(Icons.center_focus_strong, 'Focus on the label with name, batch, expiry'),
+          const SizedBox(height: 8),
+          _tip(Icons.edit, 'You can edit all fields after AI reads them'),
+          const SizedBox(height: 8),
+          _tip(Icons.vpn_key, 'Set Gemini API key in Settings first'),
+        ],
+      ]),
     );
+  }
+
+  Widget _tip(IconData icon, String text) {
+    return Row(children: [
+      Icon(icon, size: 18, color: Colors.teal[400]),
+      const SizedBox(width: 10),
+      Expanded(child: Text(text, style: TextStyle(fontSize: 13, color: Colors.grey[600]))),
+    ]);
+  }
+
+  Widget _buildForm() {
+    final hasData = _fields.isNotEmpty;
+    return Column(children: [
+      if (_imageBytes != null)
+        Container(height: 100, width: double.infinity, color: Colors.grey[200],
+          child: Stack(children: [
+            Center(child: Image.memory(_imageBytes!, height: 100, width: double.infinity, fit: BoxFit.cover)),
+            Positioned(top: 4, right: 4, child: IconButton(
+              icon: const Icon(Icons.camera_alt, color: Colors.white),
+              style: IconButton.styleFrom(backgroundColor: Colors.black54),
+              onPressed: () => setState(() { _showForm = false; }))),
+          ])),
+      Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        color: hasData ? Colors.green[50] : Colors.blue[50],
+        child: Row(children: [
+          Icon(hasData ? Icons.check_circle : Icons.edit,
+            color: hasData ? Colors.green : Colors.blue, size: 20),
+          const SizedBox(width: 8),
+          Expanded(child: Text(
+            hasData ? 'AI read ${_fields.values.where((v) => v.isNotEmpty).length} fields — edit if needed'
+              : 'Enter medicine details manually',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500,
+              color: hasData ? Colors.green[800] : Colors.blue[800]))),
+        ])),
+      Expanded(child: ListView(padding: const EdgeInsets.all(16),
+        children: _fieldOrder.map((k) => Padding(padding: const EdgeInsets.only(bottom: 12),
+          child: TextField(controller: _ctrls[k],
+            decoration: InputDecoration(
+              labelText: _fieldLabels[k] ?? k,
+              prefixIcon: Icon(_fieldIcons[k] ?? Icons.edit,
+                color: _ctrls[k]!.text.isNotEmpty ? Colors.teal : Colors.grey, size: 20),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              filled: _ctrls[k]!.text.isNotEmpty,
+              fillColor: _ctrls[k]!.text.isNotEmpty ? Colors.teal.withOpacity(0.05) : null,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            ))),
+        ).toList())),
+      Container(padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: Colors.white, boxShadow: [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: const Offset(0, -2))
+        ]),
+        child: Row(children: [
+          Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel'))),
+          const SizedBox(width: 12),
+          Expanded(flex: 2, child: ElevatedButton.icon(onPressed: _save,
+            icon: const Icon(Icons.check), label: const Text('Save to Stock'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14)))),
+        ])),
+    ]);
   }
 }

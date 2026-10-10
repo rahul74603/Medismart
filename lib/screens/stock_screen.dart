@@ -253,80 +253,43 @@ class _StockScreenState extends State<StockScreen> {
                       child: OutlinedButton.icon(
                         onPressed: () async {
                           try {
-                            final raw = await Navigator.push(
+                            final result = await Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                     builder: (_) => const QrScanScreen()));
-                            if (raw == null ||
-                                raw.toString().trim().isEmpty) {
-                              return;
-                            }
-                            final qr =
-                                QrMedicineParser.parse(raw.toString());
-                            int n = 0;
-                            bool aiUsed = false;
-                            if (qr.name.isNotEmpty &&
-                                nameCtrl.text.trim().isEmpty) {
-                              nameCtrl.text = qr.name;
-                              n++;
-                            }
-                            if (qr.batch.isNotEmpty) {
-                              batchCtrl.text = qr.batch;
-                              n++;
-                            }
-                            if (qr.gtin.isNotEmpty) {
-                              barcodeCtrl.text = qr.gtin;
-                              n++;
-                            }
-                            if (qr.expiry.isNotEmpty) {
-                              expiryCtrl.text = qr.expiry;
-                              n++;
-                            }
-                            if (qr.mrp.isNotEmpty) {
-                              priceCtrl.text = qr.mrp;
-                              n++;
-                            }
-                            if (n == 0 && mounted) {
-                              final ai =
-                                  await GeminiService.tryQrWithLoader(
-                                      context, raw.toString());
-                              if (ai != null) {
-                                if (ai.name.isNotEmpty &&
-                                    nameCtrl.text.trim().isEmpty) {
-                                  nameCtrl.text = ai.name;
-                                  n++;
-                                }
-                                if (ai.batch.isNotEmpty) {
-                                  batchCtrl.text = ai.batch;
-                                  n++;
-                                }
-                                if (ai.gtin.isNotEmpty) {
-                                  barcodeCtrl.text = ai.gtin;
-                                  n++;
-                                }
-                                if (ai.expiry.isNotEmpty) {
-                                  expiryCtrl.text = ai.expiry;
-                                  n++;
-                                }
-                                if (ai.mrp.isNotEmpty) {
-                                  priceCtrl.text = ai.mrp;
-                                  n++;
-                                }
-                                aiUsed = n > 0;
+                            if (result == null) return;
+                            if (result is Map) {
+                              final m = result.map(
+                                  (k, v) => MapEntry(k.toString(), v.toString()));
+                              int n = 0;
+                              if ((m['name'] ?? '').isNotEmpty && nameCtrl.text.trim().isEmpty) {
+                                nameCtrl.text = m['name']!; n++;
                               }
+                              if ((m['salts'] ?? '').isNotEmpty) {
+                                chemicalCtrl.text = m['salts']!; n++;
+                              }
+                              if ((m['batch'] ?? '').isNotEmpty) {
+                                batchCtrl.text = m['batch']!; n++;
+                              }
+                              if ((m['gtin'] ?? '').isNotEmpty) {
+                                barcodeCtrl.text = m['gtin']!; n++;
+                              }
+                              if ((m['expiry'] ?? '').isNotEmpty) {
+                                expiryCtrl.text = m['expiry']!; n++;
+                              }
+                              if ((m['mrp'] ?? '').isNotEmpty) {
+                                priceCtrl.text = m['mrp']!; n++;
+                              }
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                  content: Text(n > 0
+                                      ? '${Lang.t('qr_ai')} — $n fields filled'
+                                      : Lang.t('qr_none')),
+                                  backgroundColor: n > 0 ? Colors.green : Colors.orange));
                             }
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                    content: Text(n > 0
-                                        ? Lang.t(aiUsed ? 'qr_ai' : 'qr_filled')
-                                        : Lang.t('qr_none')),
-                                    backgroundColor: n > 0
-                                        ? Colors.green
-                                        : Colors.orange));
                           } catch (_) {}
                         },
-                        icon: const Icon(Icons.qr_code_scanner),
+                        icon: const Icon(Icons.camera_alt),
                         label: Text(Lang.t('qr_scan')),
                       ),
                     ),

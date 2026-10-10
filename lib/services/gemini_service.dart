@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'app_prefs.dart';
@@ -60,6 +61,98 @@ class GeminiService {
           'Batch: ${g('batch')}\nEXP: ${g('expiry')}\nMFG: ${g('mfg')}\nMRP: ${g('mrp')}\nName: ${g('name')}\nGTIN: ${g('gtin')}');
       if (recheck.isEmpty) return null;
       return recheck;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Photo (image bytes) -> extracted medicine fields as Map.
+  /// Uses Gemini vision to read medicine label from photo.
+  static Future<Map<String, String>?> tryImage(Uint8List imageBytes) async {
+    try {
+      final key = await AppPrefs.getGeminiKey();
+      if (key.isEmpty || imageBytes.isEmpty) return null;
+      final b64 = base64Encode(imageBytes);
+      final uri = Uri.parse(
+          'https://generativelanguage.googleapis.com/v1beta/models/$_model:generateContent?key=$key');
+      const prompt =
+          'You are an Indian medicine label reader. From this photo of a medicine '
+          'strip/bottle/packaging, extract ALL visible fields. '
+          'Rules:\n'
+          '- name: medicine brand name (e.g. "Dolo 650", "Crocin")\n'
+          '- batch: batch/lot number\n'
+          '- expiry: expiry date as DD/MM/YYYY (month-year only -> day 01; 2-digit year -> 20xx)\n'
+          '- mfg: manufacturing date as DD/MM/YYYY if visible\n'
+          '- mrp: MRP as number only, no Rs/symbols (e.g. "45.50")\n'
+          '- salts: active ingredients/composition with strength (e.g. "Paracetamol 650mg")\n'
+          '- manufacturer: company name\n'
+          '- gtin: barcode number if visible\n'
+          '- pack_size: pack info if visible (e.g. "10 tablets", "1x15")\n'
+          '- hsn: HSN code if visible\n'
+          'Empty string for any missing field. '
+          'Reply ONLY a JSON object, no other text.';
+      final resp = await http
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'contents': [
+                {
+                  'parts': [
+                    {'text': prompt},
+                    {
+                      'inlineData': {
+                        'mimeType': 'image/jpeg',
+                        'data': b64,
+                      }
+                    }
+                  ]
+                }
+              ],
+              'generationConfig': {
+                'responseMimeType': 'application/json',
+                'temperature': 0
+              }
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
+      if (resp.statusCode != 200) return null;
+      final data = jsonDecode(resp.body);
+      final parts = data['candidates']?[0]?['content']?['parts'];
+      if (parts is! List || parts.isEmpty) return null;
+      final txt = (parts[0]['text'] ?? '').toString();
+      if (txt.isEmpty) return null;
+      final obj = jsonDecode(txt);
+      if (obj is! Map) return null;
+      return obj.map((k, v) => MapEntry(k.toString(), (v ?? '').toString()));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Same as tryImage but with a waiting popup.
+  static Future<Map<String, String>?> tryImageWithLoader(
+      BuildContext context, Uint8List imageBytes) async {
+    try {
+      final key = await AppPrefs.getGeminiKey();
+      if (key.isEmpty) return null;
+      bool open = true;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          content: Row(children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 16),
+            Expanded(child: Text(Lang.t('qr_wait'))),
+          ]),
+        ),
+      ).then((_) => open = false);
+      final res = await tryImage(imageBytes);
+      try {
+        if (open) Navigator.pop(context);
+      } catch (_) {}
+      return res;
     } catch (_) {
       return null;
     }
