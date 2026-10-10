@@ -7,14 +7,9 @@ import 'app_prefs.dart';
 import 'lang_service.dart';
 import 'qr_medicine_parser.dart';
 
-/// Optional AI fallback for QR codes the local parser can't crack.
-/// Uses the user's own Gemini API key (saved in Settings). No key / no net = skipped.
-/// NEVER throws - returns null on any failure.
 class GeminiService {
   static const String _model = 'gemini-2.0-flash';
 
-  /// Raw QR text in -> normalized QrMedicineData out (or null).
-  /// AI output is re-validated through the local parser (kills AI garbage).
   static Future<QrMedicineData?> tryQr(String rawText) async {
     try {
       final key = await AppPrefs.getGeminiKey();
@@ -66,8 +61,34 @@ class GeminiService {
     }
   }
 
-  /// Photo (image bytes) -> extracted medicine fields as Map.
-  /// Uses Gemini vision to read medicine label from photo.
+  static Future<QrMedicineData?> tryQrWithLoader(
+      BuildContext context, String raw) async {
+    try {
+      final key = await AppPrefs.getGeminiKey();
+      if (key.isEmpty) return null;
+      bool open = true;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          content: Row(children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 16),
+            Expanded(child: Text(Lang.t('qr_wait'))),
+          ]),
+        ),
+      ).then((_) => open = false);
+      final res = await tryQr(raw);
+      try {
+        if (open) Navigator.pop(context);
+      } catch (_) {}
+      return res;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Photo -> medicine fields via Gemini vision.
   static Future<Map<String, String>?> tryImage(Uint8List imageBytes) async {
     try {
       final key = await AppPrefs.getGeminiKey();
@@ -75,53 +96,63 @@ class GeminiService {
       final b64 = base64Encode(imageBytes);
       final uri = Uri.parse(
           'https://generativelanguage.googleapis.com/v1beta/models/$_model:generateContent?key=$key');
-      const prompt =
-          'You are an expert Indian pharmaceutical label reader. Extract data from this '
-          'medicine photo with MAXIMUM accuracy.\n\n'
-          'CRITICAL RULES:\n'
-          '1. Read EVERY visible text carefully. Do NOT guess or hallucinate.\n'
-          '2. If a field is not clearly visible, use empty string "".\n'
-          '3. NEVER mix up fields - name is name, batch is batch.\n\n'
-          'FIELD EXTRACTION GUIDE:\n\n'
-          'name: The BRAND NAME printed largest on the strip/pack. '
-          'Examples: "Dolo 650", "Crocin", "Azithral 500", "Pan 40", "
-          'Becosules", "Shelcal 500". NOT the chemical name.\n\n'
-          'batch: Look for these labels: "Batch", "Batch No", "Batch No.", '
-          '"Batch Number", "Lot", "Lot No", "Lot No.", "BN", "B.No", '
-          'followed by alphanumeric code like "AE2345", "T12345".\n\n'
-          'expiry: Look for these labels: "Expiry", "Exp", "Exp.", '
-          '"Expiry Date", "Expiry Date:", "EXP", "EXP DATE", '
-          '"Best Before", "Best Before:", "Use Before", "Use By", '
-          '"Valid Till", "Valid Upto", "Valid Up To".\n'
-          'Also look for duration-based expiry like: "24 months from mfg", '
-          '"18 months from date of manufacture", "24M", "36M".\n'
-          'Format as DD/MM/YYYY. If only month+year (e.g. "12/2026" or '
-          '"Dec 2026" or "12-26"), use day 01 -> "01/12/2026". '
-          'If duration-based (e.g. "24 months from MFG 06/2025"), '
-          'calculate and return DD/MM/YYYY.\n\n'
-          'mfg: Look for "MFG", "Mfg", "Mfd", "Mfg.", "Manufactured on", '
-          '"Date of Manufacture", "MFD", "DOM". Format DD/MM/YYYY.\n\n'
-          'mrp: Look for "MRP", "M.R.P.", "Max Retail Price", "MRP Rs", '
-          '"MRP ₹". Return ONLY the number without Rs/₹/symbols. '
-          'For example if it says "MRP Rs. 45.50" return "45.50". '
-          'If "₹120.00" return "120.00".\n\n'
-          'salts: Look for "Composition", "Each film coated tablet contains", '
-          '"Each tablet/capsule/ml contains", "Active ingredients", '
-          '"Ingredients", "Formulation", "Each 5ml contains". '
-          'Include the FULL composition with ALL salts and their strengths. '
-          'Example: "Paracetamol 650mg" or "Amoxicillin 500mg + Clavulanic Acid 125mg". '
-          'If multiple salts, include all separated by " + ".\n\n'
-          'manufacturer: Look for "Manufactured by", "Mfg by", "Mfr", '
-          '"Manufactured for", "Marketed by", "Packed by", "Distributed by", '
-          '"Licence No". Extract the company name.\n\n'
-          'gtin: The barcode number. Look for digits under a barcode (12-14 digits), '
-          'or "GTIN", "EAN", "UPC".\n\n'
-          'pack_size: Look for "Pack of", "10 Tablets", "1x10", "Strip of 10", '
-          '"15 tablets", "100ml", "30 Capsules", "10x10".\n\n'
-          'hsn: Look for "HSN", "HSN Code", "HSN:", followed by 4-8 digit number.\n\n'
-          'Reply ONLY a JSON object with these exact keys, no other text: '
-          '{"name":"","batch":"","expiry":"","mfg":"","mrp":"","salts":"",'
-          '"manufacturer":"","gtin":"","pack_size":"","hsn":""}';
+
+      // SMART PROMPT — all Indian pharma label variations
+      final prompt = StringBuffer();
+      prompt.write('You are an expert Indian pharmaceutical label reader. ');
+      prompt.write('Extract ALL visible data from this medicine photo with MAXIMUM accuracy.\n\n');
+      prompt.write('CRITICAL RULES:\n');
+      prompt.write('1. Read EVERY visible text carefully. Do NOT guess or hallucinate.\n');
+      prompt.write('2. If a field is NOT clearly visible, use empty string.\n');
+      prompt.write('3. NEVER mix up fields - name is name, batch is batch.\n\n');
+      prompt.write('FIELD EXTRACTION GUIDE:\n\n');
+
+      prompt.write('name: The BRAND NAME printed largest on the strip/pack. ');
+      prompt.write('Examples: Dolo 650, Crocin, Azithral 500, Pan 40, Becosules, Shelcal 500. ');
+      prompt.write('NOT the chemical/salt name.\n\n');
+
+      prompt.write('batch: Look for: Batch, Batch No, Batch No., Batch Number, ');
+      prompt.write('Lot, Lot No, Lot No., BN, B.No. ');
+      prompt.write('Followed by alphanumeric code like AE2345, T12345.\n\n');
+
+      prompt.write('expiry: Look for ALL these labels: Expiry, Exp, Exp., Expiry Date, ');
+      prompt.write('EXP, EXP DATE, Best Before, Best Before:, Use Before, Use By, ');
+      prompt.write('Valid Till, Valid Upto, Valid Up To.\n');
+      prompt.write('Also duration-based: 24 months from mfg, 18 months from date of manufacture, ');
+      prompt.write('24M, 36M, 24 MONTHS, 36 MONTHS.\n');
+      prompt.write('Format as DD/MM/YYYY. Month+year only (12/2026, Dec 2026, 12-26) -> day 01. ');
+      prompt.write('2-digit year -> 20xx. Duration-based -> calculate from mfg date.\n\n');
+
+      prompt.write('mfg: Look for: MFG, Mfg, Mfd, Mfg., Manufactured on, ');
+      prompt.write('Date of Manufacture, MFD, DOM. Format DD/MM/YYYY.\n\n');
+
+      prompt.write('mrp: Look for: MRP, M.R.P., Max Retail Price, MRP Rs, ');
+      prompt.write('MRP followed by Rs or rupee symbol. ');
+      prompt.write('Return ONLY the number without any currency symbol. ');
+      prompt.write('Example: MRP Rs. 45.50 -> return 45.50. Rs 120.00 -> return 120.00.\n\n');
+
+      prompt.write('salts: Look for: Composition, Each film coated tablet contains, ');
+      prompt.write('Each tablet/capsule/ml contains, Active ingredients, Ingredients, ');
+      prompt.write('Formulation, Each 5ml contains, Each capsule contains. ');
+      prompt.write('Include FULL composition with ALL salts and strengths. ');
+      prompt.write('Example: Paracetamol 650mg or Amoxicillin 500mg + Clavulanic Acid 125mg. ');
+      prompt.write('Multiple salts separated by + sign.\n\n');
+
+      prompt.write('manufacturer: Look for: Manufactured by, Mfg by, Mfr, ');
+      prompt.write('Manufactured for, Marketed by, Packed by, Distributed by. ');
+      prompt.write('Extract the company name.\n\n');
+
+      prompt.write('gtin: Barcode number. Look for 12-14 digits under a barcode, ');
+      prompt.write('or labels GTIN, EAN, UPC.\n\n');
+
+      prompt.write('pack_size: Look for: Pack of, 10 Tablets, 1x10, Strip of 10, ');
+      prompt.write('15 tablets, 100ml, 30 Capsules, 10x10, 15 ml.\n\n');
+
+      prompt.write('hsn: Look for: HSN, HSN Code, HSN: followed by 4-8 digit number.\n\n');
+
+      prompt.write('Reply ONLY a JSON object with these exact keys, no other text: ');
+      prompt.write('{"name":"","batch":"","expiry":"","mfg":"","mrp":"","salts":"","manufacturer":"","gtin":"","pack_size":"","hsn":""}');
+
       final resp = await http
           .post(
             uri,
@@ -130,7 +161,7 @@ class GeminiService {
               'contents': [
                 {
                   'parts': [
-                    {'text': prompt},
+                    {'text': prompt.toString()},
                     {
                       'inlineData': {
                         'mimeType': 'image/jpeg',
@@ -161,7 +192,6 @@ class GeminiService {
     }
   }
 
-  /// Same as tryImage but with a waiting popup.
   static Future<Map<String, String>?> tryImageWithLoader(
       BuildContext context, Uint8List imageBytes) async {
     try {
@@ -180,34 +210,6 @@ class GeminiService {
         ),
       ).then((_) => open = false);
       final res = await tryImage(imageBytes);
-      try {
-        if (open) Navigator.pop(context);
-      } catch (_) {}
-      return res;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// Same as tryQr but with a waiting popup. Returns null if no key / fail.
-  static Future<QrMedicineData?> tryQrWithLoader(
-      BuildContext context, String raw) async {
-    try {
-      final key = await AppPrefs.getGeminiKey();
-      if (key.isEmpty) return null;
-      bool open = true;
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => AlertDialog(
-          content: Row(children: [
-            const CircularProgressIndicator(),
-            const SizedBox(width: 16),
-            Expanded(child: Text(Lang.t('qr_wait'))),
-          ]),
-        ),
-      ).then((_) => open = false);
-      final res = await tryQr(raw);
       try {
         if (open) Navigator.pop(context);
       } catch (_) {}
